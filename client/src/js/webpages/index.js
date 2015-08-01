@@ -183,6 +183,8 @@ goog.require('ol.tilegrid.TileGrid');
       var f = new ol.format.GeoJSON();
           var olFeature =  f.readFeature( feature, {featureProjection: 'EPSG:3857'});
           layer.getSource().addFeature(olFeature);
+
+          console.log("ol.f po pridani", getGeojson(olFeature));
       /*setTimeout(function(){
           var f = new ol.format.GeoJSON();
           var olFeature =  f.readFeature( feature, {featureProjection: 'EPSG:3857'});
@@ -259,6 +261,7 @@ goog.require('ol.tilegrid.TileGrid');
                */
                var bfeatures = [];
 
+               console.log("actual type: ", features[i].geometry.type);
                mfeatures.push(features[i]);
 
               //najdi vsechny dalsi se stejnym id v teto tile
@@ -280,26 +283,77 @@ goog.require('ol.tilegrid.TileGrid');
                   }
               }
 
-              try {
+              //try {
 
-                  var fc = turf.featurecollection(mfeatures);
+                  var geometryWithAttr;
+                  try {
+                    geometryWithAttr = JSON.parse(JSON.stringify(mfeatures[0]));
+                  } catch (err){
+                    console.log("error in parsing: ", err);
+                  }
 
-                  //if(fc.features.length > 0){
-                          var merged = turf.merge(fc);
-                          //console.log("merged: ", merged);
-                          geojsonFeatureToLayer(merged, vectorLayer);
-                  //}
+                  var geoReader = new jsts.io.GeoJSONReader(),
+                      geoWriter = new jsts.io.GeoJSONWriter();
 
-              } catch (erro){
-                  console.log("chyba 1: ", erro);
-                  break;
-              } 
+                  var newGeometry;
+                  var isFirstLoop = true;
 
-              
-              removeFeatures(featuresToDelete);
 
-              console.log("z teto tile je: ", mfeatures);
-          }
+                  //TODO dodelat atributz
+                  if(mfeatures.length > 1){
+                    do {
+                      var a = geoReader.read(mfeatures[0]);
+                      mfeatures.shift();
+                      var aValid = a.geometry.isValid();
+
+                      if(aValid){
+                        if(mfeatures.length > 0 && isFirstLoop){
+                          var b = geoReader.read(mfeatures[0]);
+                          mfeatures.shift()
+                          var bValid = b.geometry.isValid();
+                          if(bValid){
+                            newGeometry = a.geometry.union(b.geometry);
+                          } else {
+                            console.log("invalid geometry");
+                          }
+                        } else if(newGeometry !== undefined){
+                          newGeometry  = newGeometry.union(a);
+                        } 
+                      } else {
+                        console.log("invalid geometry");
+                      }
+
+                      isFirstLoop = false;
+                    } while (mfeatures.length > 0);
+                  } else if (mfeatures.length == 1){
+                    newGeometry = geoReader.read(mfeatures[0]).geometry;
+                    if(!newGeometry.isValid()){
+                      console.log("invalid geometry");
+                    }
+                  }
+
+                  console.log("geom: ",  JSON.stringify(geoWriter.write(newGeometry)));
+
+                  try {
+                    geometryWithAttr.geometry = geoWriter.write(newGeometry);
+                    geojsonFeatureToLayer(geometryWithAttr, vectorLayer);
+                    //removeFeatures(featuresToDelete);
+                  } catch (err){
+                    console.log("eror in parsing newGeometry: ", err);
+                    break;
+                  }
+                  //console.log("newGeometry: ", geoWriter.write(newGeometry));
+
+                  
+                  //newGeometry = undefined;
+
+
+              /*} catch (erro){
+                console.log("chyba 1: ", erro);
+                break;
+              } */
+
+                      }
       }
   };
 
@@ -311,12 +365,15 @@ goog.require('ol.tilegrid.TileGrid');
     renderer: 'canvas',
     target: document.getElementById('map'),
     view: new ol.View({
-      center: ol.proj.fromLonLat([14.46418, 50.0756]),
+      center: ol.proj.fromLonLat([14.96418, 49.0756]),
       projection: 'EPSG:3857',
       maxZoom: 14,
       zoom: 10
     })
   });
+
+  console.log(map);
+  console.log(vectorLayer);
 
 
 
