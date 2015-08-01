@@ -1,3 +1,9 @@
+# DIPLOMKA 
+
+
+
+
+
 # ol3 devstack
 
 * [OpenLayers 3](ol3js.org) & [Google Closure](https://developers.google.com/closure/) devstack ready for [advanced optimizations](https://developers.google.com/closure/compiler/docs/compilation_levels) using [plovr](https://github.com/bolinfest/plovr)
@@ -43,3 +49,10 @@ Windows users: If you have some errors during `npm install` related to [node-gyp
 * `grunt build` to compile the code and copy files to `client/public`
 * `grunt build --map` to include also [source maps](https://developer.chrome.com/devtools/docs/javascript-debugging#source-maps)
 
+=======
+# dioplomkaVT
+
+Tilestache seed
+
+//pozor na bbox...ma prehozene souradnice nez vsechny generatory bboxu
+tilestache-seed.py -b  48.51 11.97 51.19 19.07 -c tilestache.cfg -l okresy -e topojson 9 10 11 12 13
