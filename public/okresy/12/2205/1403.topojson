@@ -1,0 +1,1 @@
+{"objects":{"vectile":{"type":"GeometryCollection","geometries":[{"arcs":[[0]],"type":"Polygon","properties":{"id":19,"nazev":"Strakonice"},"clipped":true,"id":"f365358cc6"}]}},"type":"Topology","transform":{"translate":[13.798828124999966,49.15296965617043],"scale":[8.583068847655903e-05,5.6104286601424413e-05]},"arcs":[[[0,0],[0,1024],[1024,0],[0,-1024],[-1024,0]]]}

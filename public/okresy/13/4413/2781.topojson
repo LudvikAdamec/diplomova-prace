@@ -1,0 +1,1 @@
+{"objects":{"vectile":{"type":"GeometryCollection","geometries":[{"arcs":[[0]],"type":"Polygon","properties":{"id":3,"nazev":"Beroun"},"clipped":true,"id":"61c5faeaaa"}]}},"type":"Topology","transform":{"translate":[13.930664062499948,49.894634395734215],"scale":[4.291534423829513e-05,2.7637752696783868e-05]},"arcs":[[[0,0],[0,1024],[1024,0],[0,-1024],[-1024,0]]]}

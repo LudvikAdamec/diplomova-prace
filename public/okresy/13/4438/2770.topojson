@@ -1,0 +1,1 @@
+{"objects":{"vectile":{"type":"GeometryCollection","geometries":[{"arcs":[[0]],"type":"Polygon","properties":{"id":9,"nazev":"Nymburk"},"clipped":true,"id":"2cdc63ff3c"}]}},"type":"Topology","transform":{"translate":[15.02929687499997,50.20503326494332],"scale":[4.291534423826564e-05,2.745953860246869e-05]},"arcs":[[[0,0],[0,1024],[1024,0],[0,-1024],[-1024,0]]]}

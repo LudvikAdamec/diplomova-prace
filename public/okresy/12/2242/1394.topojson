@@ -1,0 +1,1 @@
+{"objects":{"vectile":{"type":"GeometryCollection","geometries":[{"arcs":[[0]],"type":"Polygon","properties":{"id":64,"nazev":"Olomouc"},"clipped":true,"id":"4de32e373a"}]}},"type":"Topology","transform":{"translate":[17.050781249999986,49.66762782262194],"scale":[8.58306884765278e-05,5.55189121983074e-05]},"arcs":[[[0,0],[0,1024],[1024,0],[0,-1024],[-1024,0]]]}

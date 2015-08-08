@@ -1,0 +1,1 @@
+{"objects":{"vectile":{"type":"GeometryCollection","geometries":[{"arcs":[[0]],"type":"Polygon","properties":{"id":52,"nazev":"Jihlava"},"clipped":true,"id":"5ac75b3b2b"}]}},"type":"Topology","transform":{"translate":[15.600585937500002,49.38237278700955],"scale":[4.291534423826737e-05,2.7930090513980654e-05]},"arcs":[[[0,0],[0,1024],[1024,0],[0,-1024],[-1024,0]]]}
