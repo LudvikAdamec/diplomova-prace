@@ -155,6 +155,39 @@ goog.require('ol.tilegrid.TileGrid');
    */
   var vektoroveDlazdice = [];
 
+
+  /*
+  
+
+  TODO:
+  - dodelat effectiveMerging
+  - predelat mergTile na mergeTiles
+  - predelat succes styleFunction
+
+    var arrToMerge = [];
+
+    makeAsyncFunction = function(time, ){
+      
+    }
+
+    var effectiveMerging = function(){
+      if(arrToMerge < 3){
+        setTimeout(effectiveMerging, 300);
+      } else {
+        var toNextMerge  = [];
+        var length = arrToMerge.length;
+        for(var i = 0; i < length; i++){
+          toNextMerge.push(arrToMerge[i]);
+        }
+        
+        arrToMerge.splice(0, length);
+
+        merge(toNextMerge);
+      }
+    }
+
+  */
+
   /**
    * [successFunction description]
    * @param  {string} data [description]
