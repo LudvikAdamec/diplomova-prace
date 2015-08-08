@@ -176,12 +176,12 @@ goog.require('ol.tilegrid.TileGrid');
         var dlazdice = JSON.parse(arrToMerge.shift());
         var geojsonTile = topojson.feature(dlazdice, dlazdice.objects.vectile);
         if(geojsonTile.features.length > 0){
-          //data.features.push(geojsonTile.features);
+          // data.features.push(geojsonTile.features);
           for (var i = 0; i < geojsonTile.features.length; i++) {
             data.features.push(geojsonTile.features[i]);
           };
           
-          mergeTile(data);
+          mergeData(data);
         }
       }
 
@@ -226,13 +226,8 @@ goog.require('ol.tilegrid.TileGrid');
 
   var geojsonFeatureToLayer = function( feature, layer ) {
       var f = new ol.format.GeoJSON();
-          var olFeature =  f.readFeature( feature, {featureProjection: 'EPSG:3857'});
-          layer.getSource().addFeature(olFeature);
-      /*setTimeout(function(){
-          var f = new ol.format.GeoJSON();
-          var olFeature =  f.readFeature( feature, {featureProjection: 'EPSG:3857'});
-          layer.getSource().addFeature(olFeature);
-      }, 10);*/
+      var olFeature =  f.readFeature( feature, {featureProjection: 'EPSG:3857'});
+      layer.getSource().addFeature(olFeature);
   };
 
   var removeFeatures = function(features){
@@ -269,19 +264,11 @@ goog.require('ol.tilegrid.TileGrid');
 
 
 
-  /**
-   * [mergeLoadedTile description]
-   * @param  {obj} loadedTiles - array of loaded tiles
-   * @return {undefined}             [description]
-   */
-   var mergeTile = function(newTile) {
-      console.log("mergeTile");
-      var loadedTiles;
-      var completedFeatures = {};
+
+   var mergeData = function(data) {    
       var mergedIds = [];
 
-
-      var features = newTile.features;
+      var features = data.features;
       for (var i = 0; i < features.length; i++) {
           if(mergedIds.indexOf(features[i].properties.id) === -1){
               var mId = features[i].properties.id;
