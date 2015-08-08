@@ -1,0 +1,1 @@
+{"objects":{"vectile":{"type":"GeometryCollection","geometries":[{"arcs":[[0]],"type":"Polygon","properties":{"id":29,"nazev":"Karlovy Vary"},"clipped":true,"id":"50bbc05c8c"}]}},"type":"Topology","transform":{"translate":[12.832031249999956,49.95121990866204],"scale":[4.29153442382986e-05,2.7605324633250827e-05]},"arcs":[[[0,0],[0,1024],[1024,0],[0,-1024],[-1024,0]]]}
