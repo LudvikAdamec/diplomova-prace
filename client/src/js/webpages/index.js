@@ -155,12 +155,57 @@ goog.require('ol.tilegrid.TileGrid');
    */
   var vektoroveDlazdice = [];
 
+  var arrToMerge = [];
+
+
+  var status = "empty";
+  /*setInterval(function(){
+    if(status == "notEmpty");
+  }, 1000);*/
+
+  setTimeout(function(){
+    effectiveMerging();
+  }, 1500);
+
+  var effectiveMerging = function(){
+    var emptyQueue = function(){
+      var data = {};
+      data.features = [];
+
+      for (var i = 0; i < arrToMerge.length; i++) {
+        var dlazdice = JSON.parse(arrToMerge.shift());
+        var geojsonTile = topojson.feature(dlazdice, dlazdice.objects.vectile);
+        if(geojsonTile.features.length > 0){
+          //data.features.push(geojsonTile.features);
+          for (var i = 0; i < geojsonTile.features.length; i++) {
+            data.features.push(geojsonTile.features[i]);
+          };
+          
+          mergeTile(data);
+        }
+      }
+
+      effectiveMerging();
+
+    };
+
+    if(arrToMerge < 3){
+      setTimeout(function(){
+        emptyQueue();
+      }, 400);
+    } else {
+      emptyQueue();
+    }
+  };
+
   /**
    * [successFunction description]
    * @param  {string} data [description]
    * @return {undefined}      [description]
    */
   var successFunction = function(data){
+    arrToMerge.push(data);
+    /*
       console.log("success");
       var dlazdice = JSON.parse(data);
       var geojsonTile = topojson.feature(dlazdice, dlazdice.objects.vectile);
@@ -172,7 +217,7 @@ goog.require('ol.tilegrid.TileGrid');
                   geojsonFeatureToLayer(geojsonTile.features[i], vectorLayer);
               }
           }   
-      }   
+      }  */ 
   };
 
   var errorFunction = function(error){
