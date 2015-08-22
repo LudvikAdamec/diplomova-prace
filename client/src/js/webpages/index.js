@@ -17,9 +17,6 @@ goog.require('ol.style.Style')
 goog.require('ol.format.GeoJSON');
 goog.require('ol.tilegrid.TileGrid');
 
-//goog.provide('ol.proj');
-
-
 
 /**
  * The main function.
@@ -101,6 +98,7 @@ goog.require('ol.tilegrid.TileGrid');
     return styles[feature.getGeometry().getType()];
   };
 
+  //pomucka pro lokalizaci polohy v mape pri nenacteni ostatnich vrstev
   var geojsonObject = {
     'type': 'FeatureCollection',
     'crs': {
@@ -120,7 +118,6 @@ goog.require('ol.tilegrid.TileGrid');
     ]
   };
 
-
   var vectorLayer = new ol.layer.Vector({
       source: new ol.source.Vector({
           features: (new ol.format.GeoJSON()).readFeatures( geojsonObject, {featureProjection: 'EPSG:3857'})
@@ -128,16 +125,7 @@ goog.require('ol.tilegrid.TileGrid');
       style: styleFunction
   });
 
-
-
- 
   var geojsonFormat = new ol.format.GeoJSON();
-
-
-
-  var cachedTiles = [];
-  var cachedFeatures = [];
-  var cachedOlSource = new ol.source.Vector();
 
   /**
    * [getGeojson description]
@@ -149,19 +137,7 @@ goog.require('ol.tilegrid.TileGrid');
   };
 
 
-  /**
-   * [vektoroveDlazdice description]
-   * @type {Array}
-   */
-  var vektoroveDlazdice = [];
-
   var arrToMerge = [];
-
-
-  var status = "empty";
-  /*setInterval(function(){
-    if(status == "notEmpty");
-  }, 1000);*/
 
   setTimeout(function(){
     effectiveMerging();
@@ -176,7 +152,6 @@ goog.require('ol.tilegrid.TileGrid');
         var dlazdice = JSON.parse(arrToMerge.shift());
         var geojsonTile = topojson.feature(dlazdice, dlazdice.objects.vectile);
         if(geojsonTile.features.length > 0){
-          // data.features.push(geojsonTile.features);
           for (var i = 0; i < geojsonTile.features.length; i++) {
             data.features.push(geojsonTile.features[i]);
           };
@@ -205,23 +180,10 @@ goog.require('ol.tilegrid.TileGrid');
    */
   var successFunction = function(data){
     arrToMerge.push(data);
-    /*
-      console.log("success");
-      var dlazdice = JSON.parse(data);
-      var geojsonTile = topojson.feature(dlazdice, dlazdice.objects.vectile);
-      if(geojsonTile.features.length > 0){
-          if (vectorLayer.getSource().getFeatures().length > 2) {
-              mergeTile(geojsonTile);     
-          } else {
-              for(var i = 0; i < geojsonTile.features.length; i++){
-                  geojsonFeatureToLayer(geojsonTile.features[i], vectorLayer);
-              }
-          }   
-      }  */ 
   };
 
   var errorFunction = function(error){
-    //console.log("loading err: ", error);
+    console.log("Error: ", error);
   };
 
   var geojsonFeatureToLayer = function( feature, layer ) {
@@ -236,34 +198,23 @@ goog.require('ol.tilegrid.TileGrid');
       };
   };
 
-  var topoJsonURL = new ol.layer.Vector({
+  var topojsonVTLayer = new ol.layer.Vector({
       preload: Infinity,
     source: new ol.source.TileVector({
       format: new ol.format.TopoJSON(),
       tileLoadFunction: function(url){
           $.ajax({url: url, success: successFunction, error: errorFunction});
       },
-      url: 'http://localhost:9001/public/tiles/delaunyho/{z}/{x}/{y}.topojson',
+      url: 'http://localhost:9001/public/tiles/parcels/{z}/{x}/{y}.topojson',
+      //url: 'http://localhost:9001/public/tiles/delaunyho/{z}/{x}/{y}.topojson',
       //url: 'http://localhost:9001/public/tiles/hexagon/{z}/{x}/{y}.topojson',
       //url: 'http://localhost:9001/public/okresy//{z}/{x}/{y}.topojson',
       projection: 'EPSG:3857',
       tileGrid: ol.tilegrid.createXYZ({
         maxZoom: 23
       })  
-    }),
-    style: new ol.style.Style({
-      fill: new ol.style.Fill({
-        color: '#9db9e8'
-      }),
-      stroke: new ol.style.Stroke({
-        color: "#ffccdd",
-        width: 2
-      })
     })
   });
-
-
-
 
    var mergeData = function(data) {    
       var mergedIds = [];
@@ -287,24 +238,16 @@ goog.require('ol.tilegrid.TileGrid');
                */
                var mfeatures = [];
 
-              /**
-               * [bfeatures description] features for buffer operation
-               * @type {Array}
-               */
-               var bfeatures = [];
-
                mfeatures.push(features[i]);
 
-              //najdi vsechny dalsi se stejnym id v teto tile
+              //najdi vsechny dalsi se stejnym id v features.data
               for(var j = 0; j < features.length; j++){
                   if(features[i] !== features[j] && features[i].properties.id === features[j].properties.id){
                       mfeatures.push(features[j]);  //pridej segment
-                      //bfeatures.push(turf.buffer(features[j], 5, "meters"));
                   }
               }
 
-
-              //prohledej ostatni segments
+              //prohledej ostatni features
               var featuresMap = vectorLayer.getSource().getFeatures();
               for(var l = 0; l < featuresMap.length; l++){
                   if(featuresMap[l].get('id') == mId){ 
@@ -316,93 +259,39 @@ goog.require('ol.tilegrid.TileGrid');
 
               try {
 
+                if(mfeatures.length > 1){
                   var fc = turf.featurecollection(mfeatures);
+                  var merged = turf.merge(fc);
+                  geojsonFeatureToLayer(merged, vectorLayer);
+                } else if(mfeatures.length == 1){
+                  geojsonFeatureToLayer(mfeatures[0], vectorLayer);
+                }
 
-                  //if(fc.features.length > 0){
-                          var merged = turf.merge(fc);
-                          //console.log("merged: ", merged);
-                          geojsonFeatureToLayer(merged, vectorLayer);
-                  //}
 
               } catch (erro){
-                  console.log("chyba 1: ", erro);
+                  console.log("ERROR - merge data: ", erro);
                   break;
               } 
 
-              
               removeFeatures(featuresToDelete);
-
-              console.log("z teto tile je: ", mfeatures);
           }
       }
   };
 
 
-
-
   var map = new ol.Map({
-    layers: [topoJsonURL, vectorLayer],
+    layers: [topojsonVTLayer, vectorLayer],
     renderer: 'canvas',
     target: document.getElementById('map'),
     view: new ol.View({
-      center: ol.proj.fromLonLat([14.46418, 50.0756]),
+      //center: ol.proj.fromLonLat([14.46418, 50.0756]),
+      center: ol.proj.fromLonLat([15.2, 49.43]),
       projection: 'EPSG:3857',
-      maxZoom: 14,
-      zoom: 10
+      maxZoom: 22,
+      zoom: 17
     })
   });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-var topoJsonURL2 = new ol.layer.Vector({
-  source: new ol.source.TileVector({
-    format: new ol.format.TopoJSON(),
-    projection: 'EPSG:3857',
-    tileGrid: ol.tilegrid.createXYZ({
-      maxZoom: 25
-    }),
-    url: 'http://localhost:3100/okresy/{z}/{x}/{y}.topojson'
-    //url: 'http://localhost:8080/okresy/{z}/{x}/{y}.topojson'
-  }),
-  style: new ol.style.Style({
-    fill: new ol.style.Fill({
-      color: '#9db9e8'
-    }),
-    stroke: new ol.style.Stroke({
-      color: "#ffccdd",
-      width: 2
-    })
-  })
-});
-*/
-
-
-
 };
+
 goog.exportSymbol('main', app.wp.index);
