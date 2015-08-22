@@ -203,7 +203,9 @@ goog.require('ol.tilegrid.TileGrid');
       tileLoadFunction: function(url){
           $.ajax({url: url, success: successFunction, error: errorFunction});
       },
-      url: 'http://localhost:9001/public/okresy//{z}/{x}/{y}.topojson',
+      url: 'http://localhost:9001/public/tiles/delaunyho/{z}/{x}/{y}.topojson',
+      //url: 'http://localhost:9001/public/tiles/hexagon/{z}/{x}/{y}.topojson',
+      //url: 'http://localhost:9001/public/okresy//{z}/{x}/{y}.topojson',
       projection: 'EPSG:3857',
       tileGrid: ol.tilegrid.createXYZ({
         maxZoom: 23
