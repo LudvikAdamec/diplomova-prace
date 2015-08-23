@@ -3,7 +3,7 @@
 
 
 
-
+BASED on repository https://github.com/jirik/ol3ds
 # ol3 devstack
 
 * [OpenLayers 3](ol3js.org) & [Google Closure](https://developers.google.com/closure/) devstack ready for [advanced optimizations](https://developers.google.com/closure/compiler/docs/compilation_levels) using [plovr](https://github.com/bolinfest/plovr)
@@ -50,9 +50,26 @@ Windows users: If you have some errors during `npm install` related to [node-gyp
 * `grunt build --map` to include also [source maps](https://developer.chrome.com/devtools/docs/javascript-debugging#source-maps)
 
 =======
-# dioplomkaVT
+# HINTS dioplomkaVT - rendering commands....
 
 Tilestache seed
 
+Importing to pgsql:
+shp2pgsql -I -s 4326:900913 hexagonalGrid.shp public.hexagonalGrid | psql -d gis -U postgres -h 
+
+shp2pgsql -I -s 5514:900913 delaunyho.shp public.delaunyho | psql -d gis -U postgres -h localhost
+
+Tilestache seed comands:
+tilestache-seed.py -b 48.51 11.97 51.19 19.07 -c tilestache.cfg -l delaunyho -e topojson 9 10 11
+tilestache-seed.py -b 48.51 11.97 51.19 19.07 -c tilestache.cfg -l hexagon -e topojson 9 10 11 12
+tilestache-seed.py -b 49.40 15.1 49.47 15.3 -c tilestache.cfg -l parcels -e topojson 12 13 14 15 16 17 18 19 20 21
 //pozor na bbox...ma prehozene souradnice nez vsechny generatory bboxu
 tilestache-seed.py -b  48.51 11.97 51.19 19.07 -c tilestache.cfg -l okresy -e topojson 9 10 11 12 13
+
+Transformace EPSG v postgisu
+CREATE TABLE new_table AS 
+  SELECT ST_Transform(geom,900913) AS geom, ogc_fid 
+  FROM newparcel;
+
+
+
