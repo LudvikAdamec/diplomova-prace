@@ -1,0 +1,16 @@
+shp2pgsql -I -s 4326:900913 hexagonalGrid.shp public.hexagonalGrid | psql -d gis -U postgres -h 
+
+shp2pgsql -I -s 5514:900913 delaunyho.shp public.delaunyho | psql -d gis -U postgres -h localhost
+tilestache-seed.py -b 48.51 11.97 51.19 19.07 -c tilestache.cfg -l delaunyho -e topojson 9 10 11
+tilestache-seed.py -b 48.51 11.97 51.19 19.07 -c tilestache.cfg -l hexagon -e topojson 9 10 11 12
+
+15.1
+15.3
+
+
+tilestache-seed.py -b 49.40 15.1 49.47 15.3 -c tilestache.cfg -l parcels -e topojson 12 13 14 15 16 17 18 19 20 21
+
+
+CREATE TABLE new_table AS 
+  SELECT ST_Transform(geom,900913) AS geom, ogc_fid 
+  FROM newparcel;

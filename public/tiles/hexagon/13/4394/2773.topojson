@@ -1,0 +1,1 @@
+{"objects":{"vectile":{"type":"GeometryCollection","geometries":[{"arcs":[[0]],"type":"Polygon","properties":{"id":35},"clipped":true,"id":"f54a695fbc"}]}},"type":"Topology","transform":{"translate":[13.095703125000014,50.1205780979601],"scale":[4.29153442382639e-05,2.7508108108115215e-05]},"arcs":[[[0,0],[0,1024],[1024,0],[0,-1024],[-1024,0]]]}
