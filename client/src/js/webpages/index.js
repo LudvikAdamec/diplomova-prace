@@ -23,15 +23,19 @@ goog.require('ol.tilegrid.TileGrid');
  */
  app.wp.index = function() {
 
- var image = new ol.style.Circle({
-    radius: 5,
-    fill: null,
-    stroke: new ol.style.Stroke({color: 'red', width: 1})
-  });
 
+  /**
+   * Styles for identification merged geometry type 
+   *   
+   * @type {Object}
+   */
   var styles = {
     'Point': [new ol.style.Style({
-      image: image
+      image: new ol.style.Circle({
+        radius: 5,
+        fill: null,
+        stroke: new ol.style.Stroke({color: 'red', width: 1})
+      })
     })],
     'LineString': [new ol.style.Style({
       stroke: new ol.style.Stroke({
@@ -46,7 +50,11 @@ goog.require('ol.tilegrid.TileGrid');
       })
     })],
     'MultiPoint': [new ol.style.Style({
-      image: image
+      image: new ol.style.Circle({
+        radius: 5,
+        fill: null,
+        stroke: new ol.style.Stroke({color: 'red', width: 1})
+      })
     })],
     'MultiPolygon': [new ol.style.Style({
       stroke: new ol.style.Stroke({
@@ -118,6 +126,10 @@ goog.require('ol.tilegrid.TileGrid');
     ]
   };
 
+  /**
+   * Layer filled by merged vector tiles geometries
+   * @type {ol}
+   */
   var vectorLayer = new ol.layer.Vector({
       source: new ol.source.Vector({
           features: (new ol.format.GeoJSON()).readFeatures( geojsonObject, {featureProjection: 'EPSG:3857'})
@@ -128,26 +140,35 @@ goog.require('ol.tilegrid.TileGrid');
   var geojsonFormat = new ol.format.GeoJSON();
 
   /**
-   * [getGeojson description]
-   * @param  {ol.feature} feature [description]
-   * @return {string}         [description]
+   * Method for converting ol.feature to geojson feature
+   * @param  {[type]} feature [description]
+   * @return {[type]}         [description]
    */
   var getGeojson = function(feature){
       return geojsonFormat.writeFeature(feature, {featureProjection: 'EPSG:3857'});
   };
 
-
+  /**
+   * stores loaded data before merging and adding to map
+   * @type {Array}
+   */
   var arrToMerge = [];
 
+  //after webpage loading start process of merging loaded tiles
   setTimeout(function(){
     effectiveMerging();
   }, 1500);
 
+
+  /**
+   * Simple function for merging timing 
+   * @return {[type]} [description]
+   */
   var effectiveMerging = function(){
+
     var emptyQueue = function(){
       var data = {};
       data.features = [];
-
       for (var i = 0; i < arrToMerge.length; i++) {
         var dlazdice = JSON.parse(arrToMerge.shift());
         var geojsonTile = topojson.feature(dlazdice, dlazdice.objects.vectile);
@@ -155,13 +176,11 @@ goog.require('ol.tilegrid.TileGrid');
           for (var i = 0; i < geojsonTile.features.length; i++) {
             data.features.push(geojsonTile.features[i]);
           };
-          
           mergeData(data);
         }
       }
 
       effectiveMerging();
-
     };
 
     if(arrToMerge < 3){
@@ -186,21 +205,33 @@ goog.require('ol.tilegrid.TileGrid');
     console.log("Error: ", error);
   };
 
+  /**
+   * Create new ol.features from geojson feature and added to layer
+   * @param  {[type]} feature [description]
+   * @param  {[type]} layer   [description]
+   * @return {[type]}         [description]
+   */
   var geojsonFeatureToLayer = function( feature, layer ) {
       var f = new ol.format.GeoJSON();
       var olFeature =  f.readFeature( feature, {featureProjection: 'EPSG:3857'});
       layer.getSource().addFeature(olFeature);
   };
 
+  /**
+   * Remove features from vectorLayer
+   * @param  {[type]} features [description]
+   * @return {[type]}          [description]
+   */
   var removeFeatures = function(features){
       for (var i = 0; i < features.length; i++) {
           vectorLayer.getSource().removeFeature(features[i]);
       };
   };
 
+  //topojson layer with tileLoadFunction for merging and adding features to vectorLayer
   var topojsonVTLayer = new ol.layer.Vector({
       preload: Infinity,
-    source: new ol.source.TileVector({
+      source: new ol.source.TileVector({
       format: new ol.format.TopoJSON(),
       tileLoadFunction: function(url){
           $.ajax({url: url, success: successFunction, error: errorFunction});
@@ -216,7 +247,12 @@ goog.require('ol.tilegrid.TileGrid');
     })
   });
 
-   var mergeData = function(data) {    
+  /**
+   * function for finding feature parts, merging and adding to vectorLayer
+   * @param  {object} data  - object containing features (array of geojson features)
+   * @return {[type]}      [description]
+   */
+  var mergeData = function(data) {    
       var mergedIds = [];
 
       var features = data.features;
@@ -270,7 +306,11 @@ goog.require('ol.tilegrid.TileGrid');
 
               } catch (erro){
                   console.log("ERROR - merge data: ", erro);
-                  break;
+                  for (var k = 0; k < mfeatures.length; k++) {
+                    //prida alespon puvodni rozdelene geometrie aby nedoslo k jejich ztrate
+                    geojsonFeatureToLayer(mfeatures[k], vectorLayer);
+                    
+                  };
               } 
 
               removeFeatures(featuresToDelete);
