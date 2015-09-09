@@ -3,6 +3,7 @@
 goog.provide('app.wp.index');
 
 goog.require('goog.asserts');
+goog.require('goog.array');
 goog.require('ol.Map');
 goog.require('ol.View');
 goog.require('ol.format.TopoJSON');
@@ -126,6 +127,10 @@ goog.require('ol.tilegrid.TileGrid');
       }
     ]
   };
+  
+  var geojsonFormat = new ol.format.GeoJSON({
+    defaultDataProjection: 'EPSG:4326'
+  });
 
   /**
    * Layer filled by merged vector tiles geometries
@@ -133,65 +138,45 @@ goog.require('ol.tilegrid.TileGrid');
    */
   var vectorLayer = new ol.layer.Vector({
       source: new ol.source.Vector({
-          features: (new ol.format.GeoJSON()).readFeatures( geojsonObject, {featureProjection: 'EPSG:3857'})
+          features: geojsonFormat.readFeatures( geojsonObject, {featureProjection: 'EPSG:3857'})
       }),
       style: styleFunction
   });
-
-  var geojsonFormat = new ol.format.GeoJSON();
-
-  /**
-   * Method for converting ol.feature to geojson feature
-   * @param  {[type]} feature [description]
-   * @return {[type]}         [description]
-   */
-  var getGeojson = function(feature){
-      return geojsonFormat.writeFeature(feature, {featureProjection: 'EPSG:3857'});
-  };
 
   /**
    * stores loaded data before merging and adding to map
    * @type {Array}
    */
-  var arrToMerge = [];
+  var tilesToMerge = [];
 
+  var allFeatures = [];
   /**
    * Simple function for merging timing 
    * @return {[type]} [description]
    */
-  var effectiveMerging = function(){
-
-    var data = {};
-    data.features = [];
-    console.log('pocet dlazdic arrToMerge', arrToMerge.length);
-    while(arrToMerge.length) {
-      var dlazdice = JSON.parse(arrToMerge.shift());
+  var mergeTiles = function(){
+    while(tilesToMerge.length) {
+      var dlazdice = tilesToMerge.shift();
       var geojsonTile = topojson.feature(dlazdice, dlazdice.objects.vectile);
-      console.log('pocet objektu v dlazdici', arrToMerge.length+1, ':', geojsonTile.features.length);
-      if(geojsonTile.features.length > 0){
-        for (var i = 0; i < geojsonTile.features.length; i++) {
-          data.features.push(geojsonTile.features[i]);
-        };
-        mergeData(data);
+      if(geojsonTile.features.length > 0) {
+        mergeFeatures(allFeatures, geojsonTile.features);
       }
     }
-
   };
 
   var numberOfLoadingTiles = 0;
   
   /**
    * [successFunction description]
-   * @param  {string} data [description]
+   * @param  {string} response [description]
    * @return {undefined}      [description]
    */
-  var successFunction = function(data){
+  var successFunction = function(response){
     goog.asserts.assert(numberOfLoadingTiles>0);
-    arrToMerge.push(data);
+    tilesToMerge.push(JSON.parse(response));
     numberOfLoadingTiles--;
-    console.log('pocet zbyvajicich dlazdic k nahrani', numberOfLoadingTiles);
     if(!numberOfLoadingTiles) {
-      effectiveMerging();
+      mergeTiles();
     }
   };
 
@@ -199,9 +184,8 @@ goog.require('ol.tilegrid.TileGrid');
     goog.asserts.assert(numberOfLoadingTiles>0);
     numberOfLoadingTiles--;
     if(!numberOfLoadingTiles) {
-      effectiveMerging();
+      mergeTiles();
     }
-    console.log("Error: ", error);
   };
 
   /**
@@ -210,21 +194,11 @@ goog.require('ol.tilegrid.TileGrid');
    * @param  {[type]} layer   [description]
    * @return {[type]}         [description]
    */
-  var geojsonFeatureToLayer = function( feature, layer ) {
-      var f = new ol.format.GeoJSON();
-      var olFeature =  f.readFeature( feature, {featureProjection: 'EPSG:3857'});
-      layer.getSource().addFeature(olFeature);
-  };
-
-  /**
-   * Remove features from vectorLayer
-   * @param  {[type]} features [description]
-   * @return {[type]}          [description]
-   */
-  var removeFeatures = function(features){
-      for (var i = 0; i < features.length; i++) {
-          vectorLayer.getSource().removeFeature(features[i]);
-      };
+  var geojsonFeatureToLayer = function(feature, layer ) {
+    var id = feature.properties.id;
+    var olFeature =  geojsonFormat.readFeature(feature, {featureProjection: 'EPSG:3857'});
+    goog.asserts.assert(!!olFeature.get('id'));
+    layer.getSource().addFeature(olFeature);
   };
 
   //topojson layer with tileLoadFunction for merging and adding features to vectorLayer
@@ -249,73 +223,67 @@ goog.require('ol.tilegrid.TileGrid');
 
   /**
    * function for finding feature parts, merging and adding to vectorLayer
-   * @param  {object} data  - object containing features (array of geojson features)
+   * @param  {object} features already existing and merged features
+   * @param  {object} featuresToMerge features to merge
    * @return {[type]}      [description]
    */
-  var mergeData = function(data) {    
-      var mergedIds = [];
-
-      var features = data.features;
-      for (var i = 0; i < features.length; i++) {
-          if(mergedIds.indexOf(features[i].properties.id) === -1){
-              var mId = features[i].properties.id;
-              var nameId = features[i].properties.nazev;
-              
-              if(mId == 'undefined'){
-                  console.log("undefined identificator -- unable to merge");
-              }
-
-              mergedIds.push(mId);
-              var featuresToDelete = [];
-
-              /**
-               * [mSegments description] features for merge
-               * @type {Array}
-               */
-               var mfeatures = [];
-
-               mfeatures.push(features[i]);
-
-              //najdi vsechny dalsi se stejnym id v features.data
-              for(var j = 0; j < features.length; j++){
-                  if(features[i] !== features[j] && features[i].properties.id === features[j].properties.id){
-                      mfeatures.push(features[j]);  //pridej segment
-                  }
-              }
-
-              //prohledej ostatni features
-              var featuresMap = vectorLayer.getSource().getFeatures();
-              for(var l = 0; l < featuresMap.length; l++){
-                  if(featuresMap[l].get('id') == mId){ 
-                      var f = getGeojson(featuresMap[l]);
-                      mfeatures.push(JSON.parse(f));
-                      featuresToDelete.push(featuresMap[l]);
-                  }
-              }
-
-              try {
-
-                if(mfeatures.length > 1){
-                  var fc = turf.featurecollection(mfeatures);
-                  var merged = turf.merge(fc);
-                  geojsonFeatureToLayer(merged, vectorLayer);
-                } else if(mfeatures.length == 1){
-                  geojsonFeatureToLayer(mfeatures[0], vectorLayer);
-                }
-
-
-              } catch (erro){
-                  console.log("ERROR - merge data: ", erro);
-                  for (var k = 0; k < mfeatures.length; k++) {
-                    //prida alespon puvodni rozdelene geometrie aby nedoslo k jejich ztrate
-                    geojsonFeatureToLayer(mfeatures[k], vectorLayer);
-                    
-                  };
-              } 
-
-              removeFeatures(featuresToDelete);
-          }
+  var mergeFeatures = function(features, featuresToMerge) {
+      
+    var featureToFeatures = function(f) {
+      goog.asserts.assert(f.geometry.type === 'Polygon'
+          || f.geometry.type === 'MultiPolygon');
+      if(f.geometry.type === 'Polygon') {
+        return [f];
+      } else {
+        return goog.array.map(f.geometry.coordinates, function(polygon) {
+          return turf.polygon(polygon, f.properties);
+        });
       }
+    }
+
+    var mergeTwoFeatures = function(f1, f2) {
+      var features = featureToFeatures(f1);
+      goog.array.extend(features, featureToFeatures(f2));
+      goog.array.forEach(features, function(f) {
+        goog.asserts.assert(f.geometry.type === 'Polygon');
+      });
+      try {
+        var fc = turf.featurecollection(features);
+        var merged = turf.merge(fc);
+      } catch(e) {
+        console.log(e);
+        merged = f1;
+      }
+      return merged;
+    };
+
+    goog.array.forEach(featuresToMerge, function(ftm) {
+      goog.asserts.assert(ftm.geometry.type === 'Polygon'
+          || ftm.geometry.type === 'MultiPolygon');
+      var ftmId = ftm.properties.id;
+      goog.asserts.assert(!!ftmId);
+
+      var sameIdFeature = goog.array.find(features, function(f) {
+        return f.properties.id === ftmId;
+      });
+
+      if(sameIdFeature) {
+        var merged = mergeTwoFeatures(ftm, sameIdFeature);
+        var olFeatures = vectorLayer.getSource().getFeatures();
+        var olFeature = goog.array.find(olFeatures, function(f) {
+          return f.get('id') === ftmId;
+        });
+        goog.asserts.assert(!!olFeature);
+        var newGeom = geojsonFormat.readGeometry(merged.geometry, {featureProjection: 'EPSG:3857'});
+        olFeature.setGeometry(newGeom);
+        goog.array.remove(features, sameIdFeature);
+        features.push(merged);
+      } else {
+        features.push(ftm);
+        geojsonFeatureToLayer(ftm, vectorLayer);
+      }
+    });
+      
   };
 
 
