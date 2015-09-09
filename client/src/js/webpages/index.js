@@ -2,6 +2,7 @@
 
 goog.provide('app.wp.index');
 
+goog.require('goog.asserts');
 goog.require('ol.Map');
 goog.require('ol.View');
 goog.require('ol.format.TopoJSON');
@@ -154,54 +155,52 @@ goog.require('ol.tilegrid.TileGrid');
    */
   var arrToMerge = [];
 
-  //after webpage loading start process of merging loaded tiles
-  setTimeout(function(){
-    effectiveMerging();
-  }, 1500);
-
-
   /**
    * Simple function for merging timing 
    * @return {[type]} [description]
    */
   var effectiveMerging = function(){
 
-    var emptyQueue = function(){
-      var data = {};
-      data.features = [];
-      for (var i = 0; i < arrToMerge.length; i++) {
-        var dlazdice = JSON.parse(arrToMerge.shift());
-        var geojsonTile = topojson.feature(dlazdice, dlazdice.objects.vectile);
-        if(geojsonTile.features.length > 0){
-          for (var i = 0; i < geojsonTile.features.length; i++) {
-            data.features.push(geojsonTile.features[i]);
-          };
-          mergeData(data);
-        }
+    var data = {};
+    data.features = [];
+    console.log('pocet dlazdic arrToMerge', arrToMerge.length);
+    while(arrToMerge.length) {
+      var dlazdice = JSON.parse(arrToMerge.shift());
+      var geojsonTile = topojson.feature(dlazdice, dlazdice.objects.vectile);
+      console.log('pocet objektu v dlazdici', arrToMerge.length+1, ':', geojsonTile.features.length);
+      if(geojsonTile.features.length > 0){
+        for (var i = 0; i < geojsonTile.features.length; i++) {
+          data.features.push(geojsonTile.features[i]);
+        };
+        mergeData(data);
       }
-
-      effectiveMerging();
-    };
-
-    if(arrToMerge < 3){
-      setTimeout(function(){
-        emptyQueue();
-      }, 400);
-    } else {
-      emptyQueue();
     }
+
   };
 
+  var numberOfLoadingTiles = 0;
+  
   /**
    * [successFunction description]
    * @param  {string} data [description]
    * @return {undefined}      [description]
    */
   var successFunction = function(data){
+    goog.asserts.assert(numberOfLoadingTiles>0);
     arrToMerge.push(data);
+    numberOfLoadingTiles--;
+    console.log('pocet zbyvajicich dlazdic k nahrani', numberOfLoadingTiles);
+    if(!numberOfLoadingTiles) {
+      effectiveMerging();
+    }
   };
 
   var errorFunction = function(error){
+    goog.asserts.assert(numberOfLoadingTiles>0);
+    numberOfLoadingTiles--;
+    if(!numberOfLoadingTiles) {
+      effectiveMerging();
+    }
     console.log("Error: ", error);
   };
 
@@ -234,6 +233,7 @@ goog.require('ol.tilegrid.TileGrid');
       source: new ol.source.TileVector({
       format: new ol.format.TopoJSON(),
       tileLoadFunction: function(url){
+        numberOfLoadingTiles++;
           $.ajax({url: url, success: successFunction, error: errorFunction});
       },
       url: 'http://localhost:9001/public/tiles/parcels/{z}/{x}/{y}.topojson',
