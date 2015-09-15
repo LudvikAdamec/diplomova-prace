@@ -7,7 +7,9 @@
     "closure-externs": "git://github.com/jirik/closure-externs#d6ce2ca54dc63bd5a484aa3f697cedf229128ab9",
     "closure-library": "git://github.com/google/closure-library#567c440d2c7f2601c970ce40bc650ad2044a77d2",
     "plovr": "https://github.com/bolinfest/plovr/releases/download/v2.0.0/plovr-39d05e7.jar",
-    "proj4js": "http://download.osgeo.org/proj4js/proj4js-1.1.0.zip"
+    "proj4js": "http://download.osgeo.org/proj4js/proj4js-1.1.0.zip",
+    "topojson": "git://github.com/mbostock/topojson#v1.6.19",
+    "turf": "git://github.com/turfjs/turf#v2.0.2"
   },
   "devDependencies": {
     "ol3": "https://github.com/openlayers/ol3.git#~3.7.0",

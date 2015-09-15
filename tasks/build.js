@@ -67,7 +67,7 @@ module.exports = function(grunt) {
     },
     open: {
       build: {
-        path: 'http://localhost:9000/client/public/'
+        path: 'http://localhost:9001/client/public/'
       }
     }
   });
