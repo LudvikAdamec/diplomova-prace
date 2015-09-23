@@ -1,7 +1,10 @@
 'use strict';
 require('../bower_components/closure-library/closure/goog/bootstrap/nodejs');
 goog.require('goog.array');
-goog.require('goog.string');
+goog.require('goog.string');  
+
+var pg = require('pg');
+
 var grunt = require('grunt');
 
 var express = require('express');
@@ -45,11 +48,86 @@ app.use('/client/src/', function(req, res, next) {
   }
 });
 
+
+app.get('/se/getFeaturesById', function(req, res){
+  var feature_collection = {
+      "type": "FeatureCollection",
+        "features": []
+  };
+
+  var ids = req.param('ids');
+
+  var queryString = ' SELECT ids AS id, ST_AsGeoJSON(geom_4326) AS geom  FROM parcelswgs WHERE ids IN(' + ids + ')';
+
+  var connectionString = "postgres://postgres:postgres@localhost/vfr";
+  pg.connect(connectionString, function(err, client, done) {
+      var query = client.query(queryString);
+
+      // Stream results back one row at a time
+      query.on('row', function(row) {
+        var jsonFeature = {
+          "type": "Feature",
+          "properties": {
+            "id": row.id
+          },
+          "geometry": JSON.parse(row.geom)
+        };
+
+        feature_collection.features.push(jsonFeature);
+      });
+
+      query.on('end', function() {
+          client.end();
+          res.json({ "FeatureCollection" : feature_collection, "ids": ids });
+      });
+
+      if(err) {
+        console.log(err);
+      }
+
+  });
+
+
+
+});
+
+var iterate = 0;
+
+app.get('/se/getFeaturesIdInBbox', function(req, res){
+   var extent = req.param('extent');
+   var extentConverted = extent.map(function (x) {
+      return parseFloat(x, 10);
+   });
+
+   //todo: predelat na intersects
+  var queryString = ' SELECT ogc_fid FROM parcelswgs WHERE parcelswgs.geom_4326 && ST_MakeEnvelope(' + extentConverted[0] + ', ' + extentConverted[1] + ', ' + extentConverted[2] + ', ' + extentConverted[3] + ', 4326)' ;
+
+  var connectionString = "postgres://postgres:postgres@localhost/vfr";
+  var results = [];
+  pg.connect(connectionString, function(err, client, done) {
+      var query = client.query(queryString);
+
+      query.on('row', function(row) {
+          results.push(row.ogc_fid);
+      });
+
+      query.on('end', function() {
+          client.end();
+          res.json({ "featuresId" : results, "z": 17, "lon": 5, "lat": 5});
+      });
+
+      if(err) {
+        console.log(err);
+      }
+
+  });
+
+});
+
 app.use('/', express.static(__dirname+'/../'));
 app.use('/public', express.static(__dirname + '../public/'));
 
 app.listen(9001, function() {
   console.log("Server is up");
 });
-
 
