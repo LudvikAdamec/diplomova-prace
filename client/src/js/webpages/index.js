@@ -29,6 +29,8 @@ goog.require('ol.layer.Tile');
 goog.require('ol.source.OSM');
 
 
+goog.require('spatialIndexLoader');
+
 
 /**
  * The main function.
@@ -68,13 +70,18 @@ goog.require('ol.source.OSM');
     renderer: 'canvas',
     target: document.getElementById('map'),
     view: new ol.View({
-        //center: ol.proj.fromLonLat([14.46418, 50.0756]),
         center: ol.proj.fromLonLat([15.2, 49.43]),
         projection: 'EPSG:3857',
         maxZoom: 22,
         zoom: 17
       })
   });
+
+  var bg =  new ol.layer.Tile({
+    source: new ol.source.OSM()
+  });
+
+    map.addLayer(bg);
 
   var geojsonFormat = new ol.format.GeoJSON({
     defaultDataProjection: 'EPSG:4326'
@@ -95,90 +102,21 @@ goog.require('ol.source.OSM');
   };
 
 
+
+
   if(method == "spatialIndexing"){
 
-    var idCache = [];
-
-    var loadFeaturesByIds = function (param) {
-      $.ajax({
-        url: param.url + param.data.requestType,
-        type: "get",
-        data:  {
-          "layerName": "parcelswgs",
-          "z": param.data.z,
-          "requestType": param.data.requestType,
-          "ids": param.data.ids
-        },
-        datatype: 'json',
-        success: function(data){
-          setTimeout(featureCache.push(data.FeatureCollection.features), 10);
-        },
-        error:function(er){
-          console.log("chyba: ", er);
-        }   
-      }); 
-    };
-
-    var loaderFunction = function(extent, resolution, projection) {
-      var url = "http://localhost:9001/se/";
-      var a = ol.proj.toLonLat([extent[0], extent[1]])
-      var b = ol.proj.toLonLat([extent[2], extent[3]])
-
-      var data = {
-        "layerName": "parcelswgs",
-        "x": a[0] - (a[0] - b[0]),
-        "y": a[1] - (a[1] - b[1]),
-        "z": map.getView().getZoom(),
-        "requestType": "getFeaturesIdInBbox",
-        "extent": [a[0], a[1], b[0], b[1]]
-      }
-
-      $.ajax({
-        url: url + data.requestType,
-        type: "get",
-        data: data,
-        datatype: 'json',
-        success: function(data){
-          var ids = data.featuresId;
-          var idsNotInCache = "";
-
-          for (var i = 0; i < ids.length; i++) {
-            if(idCache.indexOf(ids[i]) == -1){
-              idCache.push(ids[i]);
-              if(idsNotInCache == ""){
-                idsNotInCache = "'" + ids[i] + "'";
-              } else {
-                idsNotInCache = idsNotInCache + ", '" +  ids[i] + "'";
-              }
-
-            }
-          };
-
-          if(idsNotInCache.length > 0){
-            var param = {
-              url: url,
-              type: "get",
-              data:  {
-                "layerName": "parcelswgs",
-                "z": data.z,
-                "requestType": "getFeaturesById",
-                "ids": idsNotInCache
-              }
-            };
-            setTimeout(loadFeaturesByIds(param), 10);
-          }
-        },
-
-        error:function(er){
-          console.log("chyba: ", er);
-        }   
-      }); 
-
-    };
+    var newloader = new spatialIndexLoader();
 
     var vectorSource = new ol.source.Vector({
       projection: 'EPSG:900913',
-      loader: loaderFunction
+      loader: function(extent, resolution, projection) {
+        var callbackLoaderFunction = newloader.loaderFunction(extent,resolution, projection, function(responseFeatures){
+          for (var j = 0; j < responseFeatures.length; j++) {
+            setTimeout(geojsonFeatureToLayer(responseFeatures[j], vector), 0);
+          }
+        });
+      },
       strategy: ol.loadingstrategy.tile(ol.tilegrid.createXYZ({
         tileSize: 256
       }))
@@ -192,45 +130,7 @@ goog.require('ol.source.OSM');
 
     var featureCache = [];
 
-    /**
-     * Simple function for merging timing 
-     * @return {[type]} [description]
-     */
-     var effectiveMerging = function(){
-
-      var emptyQueue = function(){
-        for (var i = 0; i < featureCache.length; i++) {
-          var features = featureCache.shift();
-          for (var j = 0; j < features.length; j++) {
-
-            setTimeout(geojsonFeatureToLayer(features[j], vector), 10);
-          }
-        }
-
-        effectiveMerging();
-      };
-
-      if(featureCache < 3){
-        setTimeout(function(){
-          emptyQueue();
-        }, 400);
-      } else {
-        emptyQueue();
-      }
-    };
-
-    effectiveMerging();
-
-    var bg =  new ol.layer.Tile({
-      source: new ol.source.OSM()
-    });
-
-    map.addLayer(bg);
     map.addLayer(vector);
-
-    var tileGrid = ol.tilegrid.createXYZ({
-      tileSize: 256
-    });
 
     var getExtentWithFactor = function (factor, extent) {
       if(factor > 0){
@@ -241,7 +141,11 @@ goog.require('ol.source.OSM');
       } else {
         return false;
       }
-    }
+    };
+
+    var tileGrid = ol.tilegrid.createXYZ({
+      tileSize: 256
+    });
 
     vectorSource.strategy_ = function (extent, resolution) {
       var newExtent = getExtentWithFactor(1, extent);
@@ -257,6 +161,8 @@ goog.require('ol.source.OSM');
       }
       return extents;
     }; 
+
+
 
   } else if (method == "vectorTiling"){
     var styles = {
