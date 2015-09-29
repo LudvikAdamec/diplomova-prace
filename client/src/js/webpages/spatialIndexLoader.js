@@ -1,20 +1,22 @@
-
+'use strict';
 goog.provide('spatialIndexLoader');
 
 goog.require('ol.proj');
 goog.require('goog.asserts');
 goog.require('goog.array');
 
+/**
+ * [spatialIndexLoader description]
+ * @param  {[type]} url       [description]
+ * @param  {[type]} layerName [description]
+ * @return {[type]}           [description]
+ */
+spatialIndexLoader = function(url, layerName) {
+    this.url = url;// "http://localhost:9001/se/";
+    this.layerName = layerName; //"parcelswgs";
 
-spatialIndexLoader = function(initialCount) {
-    this._count = initialCount || 0;
-    this.url = "http://localhost:9001/se/";
     this.idCache = [];
 }
-
-spatialIndexLoader.load = function (k, v) {
-    return spatialIndexLoader.loaderFunction;
-}; 
 
 spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, projection, callback) {
   var this_ = this;
@@ -22,7 +24,7 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
   var b = ol.proj.toLonLat([extent[2], extent[3]]);
 
   var data = {
-    "layerName": "parcelswgs",
+    "layerName": this.layerName,
     //"x": a[0] - (a[0] - b[0]),
     //"y": a[1] - (a[1] - b[1]),
     //"z": map.getView().getZoom(),
@@ -50,25 +52,15 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
 spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
   var idsNotInCache = this.selectNotCachedId(data.featuresId);
   if(idsNotInCache.length > 0){
-    var param = {
-      url: this.url,
-      type: "get",
-      data:  {
-        "layerName": "parcelswgs",
-        //"z": data.z,
-        "requestType": "getFeaturesById",
-        "ids": idsNotInCache
-      }
-    };
     
     $.ajax({
-      url: param.url + param.data.requestType,
+      url: this.url + "getFeaturesById",
       type: "get",
       data:  {
-        "layerName": "parcelswgs",
-        "z": param.data.z,
-        "requestType": param.data.requestType,
-        "ids": param.data.ids
+        "layerName": this.layerName,
+        //"z": TODO: need to be done for possible genralization
+        "requestType": "getFeaturesById",
+        "ids": idsNotInCache
       },
       datatype: 'json',
       success: function(data){
@@ -79,10 +71,6 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
         console.log("chyba: ", er);
       }   
     }); 
-
-
-
-    //loadFeaturesByIds(params);
   }
 };
 
@@ -99,10 +87,5 @@ spatialIndexLoader.prototype.selectNotCachedId = function(ids) {
 
     }
   };
-
   return notCached;
-
-};
-
-spatialIndexLoader.loadFeaturesByIds = function (param) {
 };

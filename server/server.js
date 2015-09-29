@@ -48,7 +48,7 @@ app.use('/client/src/', function(req, res, next) {
   }
 });
 
-
+//TODO: predelat queryString aby získal hodnoty všech atributů a předal je do featureCollection
 app.get('/se/getFeaturesById', function(req, res){
   var feature_collection = {
       "type": "FeatureCollection",
@@ -56,14 +56,15 @@ app.get('/se/getFeaturesById', function(req, res){
   };
 
   var ids = req.param('ids');
+  var layerName = req.param('layerName');
 
-  var queryString = ' SELECT ids AS id, ST_AsGeoJSON(geom_4326) AS geom  FROM parcelswgs WHERE ids IN(' + ids + ')';
-
+  var queryString = ' SELECT ids AS id, ST_AsGeoJSON(geom_4326) AS geom  FROM ' + layerName + ' WHERE ids IN(' + ids + ')';
   var connectionString = "postgres://postgres:postgres@localhost/vfr";
+
   pg.connect(connectionString, function(err, client, done) {
       var query = client.query(queryString);
 
-      // Stream results back one row at a time
+      // make feature from every row
       query.on('row', function(row) {
         var jsonFeature = {
           "type": "Feature",
@@ -84,23 +85,20 @@ app.get('/se/getFeaturesById', function(req, res){
       if(err) {
         console.log(err);
       }
-
   });
-
-
 
 });
 
-var iterate = 0;
-
 app.get('/se/getFeaturesIdInBbox', function(req, res){
    var extent = req.param('extent');
+   var layerName = req.param('layerName');
+
    var extentConverted = extent.map(function (x) {
       return parseFloat(x, 10);
    });
 
    //todo: predelat na intersects
-  var queryString = ' SELECT ogc_fid FROM parcelswgs WHERE parcelswgs.geom_4326 && ST_MakeEnvelope(' + extentConverted[0] + ', ' + extentConverted[1] + ', ' + extentConverted[2] + ', ' + extentConverted[3] + ', 4326)' ;
+  var queryString = ' SELECT ogc_fid FROM ' + layerName + ' WHERE parcelswgs.geom_4326 && ST_MakeEnvelope(' + extentConverted[0] + ', ' + extentConverted[1] + ', ' + extentConverted[2] + ', ' + extentConverted[3] + ', 4326)' ;
 
   var connectionString = "postgres://postgres:postgres@localhost/vfr";
   var results = [];
@@ -113,7 +111,7 @@ app.get('/se/getFeaturesIdInBbox', function(req, res){
 
       query.on('end', function() {
           client.end();
-          res.json({ "featuresId" : results, "z": 17, "lon": 5, "lat": 5});
+          res.json({ "featuresId" : results });
       });
 
       if(err) {

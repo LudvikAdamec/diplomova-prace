@@ -20,17 +20,14 @@ goog.require('ol.style.Circle');
 goog.require('ol.style.Style')
 goog.require('ol.format.GeoJSON');
 goog.require('ol.tilegrid.TileGrid');
-
-
 goog.require('ol.proj');
 goog.require('ol.LoadingStrategy');
 goog.require('ol.geom.MultiPoint');
 goog.require('ol.layer.Tile');
 goog.require('ol.source.OSM');
 
-
 goog.require('spatialIndexLoader');
-
+goog.require('featuresOperations');
 
 /**
  * The main function.
@@ -57,7 +54,6 @@ goog.require('spatialIndexLoader');
       })
     }),
     geometry: function(feature) {
-          // return the coordinates of the first ring of the polygon
           var coordinates = feature.getGeometry().getCoordinates()[0];
           return new ol.geom.MultiPoint(coordinates);
         }
@@ -77,14 +73,20 @@ goog.require('spatialIndexLoader');
       })
   });
 
+  console.log(map);
+
   var bg =  new ol.layer.Tile({
     source: new ol.source.OSM()
   });
 
-    map.addLayer(bg);
+  map.addLayer(bg);
 
   var geojsonFormat = new ol.format.GeoJSON({
     defaultDataProjection: 'EPSG:4326'
+  });
+
+  var tileGrid = ol.tilegrid.createXYZ({
+    tileSize: 256
   });
 
 
@@ -102,36 +104,39 @@ goog.require('spatialIndexLoader');
   };
 
 
-
-
   if(method == "spatialIndexing"){
 
-    var newloader = new spatialIndexLoader();
+    var loader = new spatialIndexLoader("http://localhost:9001/se/", "parcelswgs");
+
+    var loaderFunction = function(extent, resolution, projection) {
+      var callback = function(responseFeatures){
+        for (var j = 0; j < responseFeatures.length; j++) {
+          setTimeout(geojsonFeatureToLayer(responseFeatures[j], vector), 0);
+        }
+      };
+      loader.loaderFunction(extent,resolution, projection, callback);
+    };
 
     var vectorSource = new ol.source.Vector({
       projection: 'EPSG:900913',
-      loader: function(extent, resolution, projection) {
-        var callbackLoaderFunction = newloader.loaderFunction(extent,resolution, projection, function(responseFeatures){
-          for (var j = 0; j < responseFeatures.length; j++) {
-            setTimeout(geojsonFeatureToLayer(responseFeatures[j], vector), 0);
-          }
-        });
-      },
-      strategy: ol.loadingstrategy.tile(ol.tilegrid.createXYZ({
-        tileSize: 256
-      }))
+      loader: loaderFunction,
+      strategy: ol.loadingstrategy.tile(tileGrid)
     });
-
 
     var vector = new ol.layer.Vector({
       source: vectorSource,
       style: styles
     });
 
-    var featureCache = [];
-
     map.addLayer(vector);
 
+
+    /**
+     * get map extent for loading behind current map
+     * @param  {[type]} factor [description]
+     * @param  {[type]} extent [description]
+     * @return {[type]}        [description]
+     */
     var getExtentWithFactor = function (factor, extent) {
       if(factor > 0){
         var xdiff = (extent[2] - extent[0]) * factor,
@@ -143,10 +148,12 @@ goog.require('spatialIndexLoader');
       }
     };
 
-    var tileGrid = ol.tilegrid.createXYZ({
-      tileSize: 256
-    });
-
+    /**
+     * method overriding strategy for preloading behind map extent
+     * @param  {[type]} extent     [description]
+     * @param  {[type]} resolution [description]
+     * @return {[type]}            [description]
+     */
     vectorSource.strategy_ = function (extent, resolution) {
       var newExtent = getExtentWithFactor(1, extent);
 
@@ -242,34 +249,12 @@ goog.require('spatialIndexLoader');
       return styles[feature.getGeometry().getType()];
     };
 
-    //pomucka pro lokalizaci polohy v mape pri nenacteni ostatnich vrstev
-    var geojsonObject = {
-      'type': 'FeatureCollection',
-      'crs': {
-        'type': 'name',
-        'properties': {
-          'name': 'EPSG:4326'
-        }
-      },
-      'features': [
-      {
-        'type': 'Feature',
-        'geometry': {
-          'type': 'Point',
-          'coordinates': [14.46418, 50.0756]
-        }
-      }
-      ]
-    };
-
     /**
      * Layer filled by merged vector tiles geometries
      * @type {ol}
      */
      var vectorLayer = new ol.layer.Vector({
-      source: new ol.source.Vector({
-        features: geojsonFormat.readFeatures( geojsonObject, {featureProjection: 'EPSG:3857'})
-      }),
+      source: new ol.source.Vector(),
       style: styleFunction
     });
 
@@ -332,12 +317,11 @@ goog.require('spatialIndexLoader');
         //url: 'http://localhost:9001/public/tiles/hexagon/{z}/{x}/{y}.topojson',
         //url: 'http://localhost:9001/public/okresy//{z}/{x}/{y}.topojson',
         projection: 'EPSG:3857',
-        tileGrid: ol.tilegrid.createXYZ({
-          maxZoom: 23
-        })  
+        tileGrid: tileGrid  
       })
     });
 
+    var operations = new featuresOperations();
 
     /**
      * function for finding feature parts, merging and adding to vectorLayer
@@ -354,20 +338,21 @@ goog.require('spatialIndexLoader');
           return [f];
         } else {
           return goog.array.map(f.geometry.coordinates, function(polygon) {
-            return turf.polygon(polygon, f.properties);
+            return operations.buildPolygon(polygon, f.properties);
           });
         }
       }
 
+
       var mergeTwoFeatures = function(f1, f2) {
+        //console.log(f1, f2);
         var features = featureToFeatures(f1);
         goog.array.extend(features, featureToFeatures(f2));
         goog.array.forEach(features, function(f) {
           goog.asserts.assert(f.geometry.type === 'Polygon');
         });
         try {
-          var fc = turf.featurecollection(features);
-          var merged = turf.merge(fc);
+          var merged = operations.mergePolygons(features);
         } catch(e) {
           console.log(e);
           merged = f1;
@@ -405,10 +390,8 @@ goog.require('spatialIndexLoader');
     };
 
 
-  map.addLayer(topojsonVTLayer);
-  map.addLayer(vectorLayer);
-      //topojsonVTLayer, vectorLayer
-
+    map.addLayer(topojsonVTLayer);
+    map.addLayer(vectorLayer);
   }
 
 
