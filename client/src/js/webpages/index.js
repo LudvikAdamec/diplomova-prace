@@ -116,7 +116,7 @@ goog.require('featuresOperations');
       "url" : "http://localhost:9001/se/"
     };
 
-    var loaderParams = {
+    /*var loaderParams = {
       "layerName" : "okrsky", //"parcelswgs";
       "dbname" : "vfr",
       "geomColumn" : "geom",
@@ -130,7 +130,7 @@ goog.require('featuresOperations');
       "geomColumn" : "geom",
       "idColumn" : "gid",
       "url" : "http://localhost:9001/se/"      
-    }
+    }*/
 
     var loader = new spatialIndexLoader(loaderParams);
     
