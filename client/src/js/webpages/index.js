@@ -34,7 +34,7 @@ goog.require('featuresOperations');
  */
  app.wp.index = function() {
   var method = "spatialIndexing";
-  //var method = "vectorTiling";
+  var method = "vectorTiling";
   
   var styles = [
   new ol.style.Style({
@@ -370,8 +370,11 @@ goog.require('featuresOperations');
           return f.properties.id === ftmId;
         });
 
+
         if(sameIdFeature) {
+          var start = new Date();
           var merged = mergeTwoFeatures(ftm, sameIdFeature);
+          console.log("Result merge mergeTwoFeatures:", new Date() - start);
           var olFeatures = vectorLayer.getSource().getFeatures();
           var olFeature = goog.array.find(olFeatures, function(f) {
             return f.get('id') === ftmId;
@@ -381,6 +384,7 @@ goog.require('featuresOperations');
           olFeature.setGeometry(newGeom);
           goog.array.remove(features, sameIdFeature);
           features.push(merged);
+          console.log("Result sameIdFeature:", new Date() - start);
         } else {
           features.push(ftm);
           geojsonFeatureToLayer(ftm, vectorLayer);
