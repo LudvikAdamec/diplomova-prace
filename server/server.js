@@ -56,10 +56,13 @@ app.get('/se/getFeaturesById', function(req, res){
   };
 
   var ids = req.param('ids');
-  var layerName = req.param('layerName');
+  var layerName = req.param('layer');
+  var dbName = req.param('db');
+  var geomRow = req.param('geom');
+  var idColumn = req.param('idColumn');
 
-  var queryString = ' SELECT ids AS id, ST_AsGeoJSON(geom_4326) AS geom  FROM ' + layerName + ' WHERE ids IN(' + ids + ')';
-  var connectionString = "postgres://postgres:postgres@localhost/vfr";
+  var queryString = ' SELECT ' + idColumn + ' AS id, ST_AsGeoJSON(' + geomRow + ') AS geom  FROM ' + layerName + ' WHERE ' + idColumn + ' IN(' + ids + ')';
+  var connectionString = "postgres://postgres:postgres@localhost/" + dbName;
 
   pg.connect(connectionString, function(err, client, done) {
       var query = client.query(queryString);
@@ -91,22 +94,26 @@ app.get('/se/getFeaturesById', function(req, res){
 
 app.get('/se/getFeaturesIdInBbox', function(req, res){
    var extent = req.param('extent');
-   var layerName = req.param('layerName');
+   var layerName = req.param('layer');
+   var dbName = req.param('db');
+   var geomRow = req.param('geom');
+   var idColumn = req.param('idColumn');
+
 
    var extentConverted = extent.map(function (x) {
       return parseFloat(x, 10);
    });
 
    //todo: predelat na intersects
-  var queryString = ' SELECT ogc_fid FROM ' + layerName + ' WHERE parcelswgs.geom_4326 && ST_MakeEnvelope(' + extentConverted[0] + ', ' + extentConverted[1] + ', ' + extentConverted[2] + ', ' + extentConverted[3] + ', 4326)' ;
+  var queryString = ' SELECT ' + idColumn + ' FROM ' + layerName + ' WHERE ' + layerName + '.' + geomRow + '&& ST_MakeEnvelope(' + extentConverted[0] + ', ' + extentConverted[1] + ', ' + extentConverted[2] + ', ' + extentConverted[3] + ', 4326)' ;
 
-  var connectionString = "postgres://postgres:postgres@localhost/vfr";
+  var connectionString = "postgres://postgres:postgres@localhost/" + dbName;
   var results = [];
   pg.connect(connectionString, function(err, client, done) {
       var query = client.query(queryString);
 
       query.on('row', function(row) {
-          results.push(row.ogc_fid);
+          results.push(row[idColumn]);
       });
 
       query.on('end', function() {

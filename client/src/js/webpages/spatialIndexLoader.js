@@ -11,10 +11,13 @@ goog.require('goog.array');
  * @param  {[type]} layerName [description]
  * @return {[type]}           [description]
  */
-spatialIndexLoader = function(url, layerName) {
-    this.url = url;// "http://localhost:9001/se/";
-    this.layerName = layerName; //"parcelswgs";
+spatialIndexLoader = function(dbParams) {
 
+    this.url = dbParams.url;// "http://localhost:9001/se/";
+    this.layerName = dbParams.layerName; //"parcelswgs";
+    this.dbname = dbParams.dbname;
+    this.geomRow = dbParams.geomColumn;
+    this.idColumn = dbParams.idColumn;
     this.idCache = [];
 }
 
@@ -24,7 +27,10 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
   var b = ol.proj.toLonLat([extent[2], extent[3]]);
 
   var data = {
-    "layerName": this.layerName,
+    "layer": this.layerName,
+    "db": this.dbname,
+    "geom": this.geomRow,
+    "idColumn": this.idColumn,
     //"x": a[0] - (a[0] - b[0]),
     //"y": a[1] - (a[1] - b[1]),
     //"z": map.getView().getZoom(),
@@ -57,7 +63,10 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
       url: this.url + "getFeaturesById",
       type: "get",
       data:  {
-        "layerName": this.layerName,
+        "layer": this.layerName,
+        "db": this.dbname,
+        "geom": this.geomRow,
+        "idColumn": this.idColumn,
         //"z": TODO: need to be done for possible genralization
         "requestType": "getFeaturesById",
         "ids": idsNotInCache

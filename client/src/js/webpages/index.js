@@ -34,7 +34,7 @@ goog.require('featuresOperations');
  */
  app.wp.index = function() {
   var method = "spatialIndexing";
-  var method = "vectorTiling";
+  //var method = "vectorTiling";
   
   var styles = [
   new ol.style.Style({
@@ -45,7 +45,7 @@ goog.require('featuresOperations');
     fill: new ol.style.Fill({
       color: 'rgba(0, 0, 255, 0.1)'
     })
-  }),
+  })/*,
   new ol.style.Style({
     image: new ol.style.Circle({
       radius: 2,
@@ -57,16 +57,18 @@ goog.require('featuresOperations');
           var coordinates = feature.getGeometry().getCoordinates()[0];
           return new ol.geom.MultiPoint(coordinates);
         }
-      })
+      })*/
   ];
 
+  var center = [14.46418, 50.0756];
+  //var center = [15.2, 49.43];
 
   var map = new ol.Map({
     layers: [],
     renderer: 'canvas',
     target: document.getElementById('map'),
     view: new ol.View({
-        center: ol.proj.fromLonLat([15.2, 49.43]),
+        center: ol.proj.fromLonLat(center),
         projection: 'EPSG:3857',
         maxZoom: 22,
         zoom: 17
@@ -106,8 +108,32 @@ goog.require('featuresOperations');
 
   if(method == "spatialIndexing"){
 
-    var loader = new spatialIndexLoader("http://localhost:9001/se/", "parcelswgs");
+    var loaderParams = {
+      "layerName" : "parcelswgs", //"parcelswgs";
+      "dbname" : "vfr",
+      "geomColumn" : "geom_4326",
+      "idColumn" : "ogc_fid",
+      "url" : "http://localhost:9001/se/"
+    };
 
+    var loaderParams = {
+      "layerName" : "okrsky", //"parcelswgs";
+      "dbname" : "vfr",
+      "geomColumn" : "geom",
+      "idColumn" : "gid",
+      "url" : "http://localhost:9001/se/"      
+    }
+
+    var loaderParams = {
+      "layerName" : "uzemni_plan", //"parcelswgs";
+      "dbname" : "vfr",
+      "geomColumn" : "geom",
+      "idColumn" : "gid",
+      "url" : "http://localhost:9001/se/"      
+    }
+
+    var loader = new spatialIndexLoader(loaderParams);
+    
     var loaderFunction = function(extent, resolution, projection) {
       var callback = function(responseFeatures){
         for (var j = 0; j < responseFeatures.length; j++) {
@@ -374,7 +400,6 @@ goog.require('featuresOperations');
         if(sameIdFeature) {
           var start = new Date();
           var merged = mergeTwoFeatures(ftm, sameIdFeature);
-          console.log("Result merge mergeTwoFeatures:", new Date() - start);
           var olFeatures = vectorLayer.getSource().getFeatures();
           var olFeature = goog.array.find(olFeatures, function(f) {
             return f.get('id') === ftmId;
@@ -384,7 +409,6 @@ goog.require('featuresOperations');
           olFeature.setGeometry(newGeom);
           goog.array.remove(features, sameIdFeature);
           features.push(merged);
-          console.log("Result sameIdFeature:", new Date() - start);
         } else {
           features.push(ftm);
           geojsonFeatureToLayer(ftm, vectorLayer);
