@@ -60,8 +60,8 @@ goog.require('featuresOperations');
       })*/
   ];
 
-  var center = [14.46418, 50.0756];
-  //var center = [15.2, 49.43];
+  //var center = [14.46418, 50.0756];
+  var center = [15.2, 49.43];
 
   var map = new ol.Map({
     layers: [],
