@@ -70,6 +70,3 @@ Transformace EPSG v postgisu
 CREATE TABLE new_table AS 
   SELECT ST_Transform(geom,900913) AS geom, ogc_fid 
   FROM newparcel;
-
-
-

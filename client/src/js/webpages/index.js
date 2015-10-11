@@ -181,7 +181,7 @@ goog.require('featuresOperations');
      * @return {[type]}            [description]
      */
     vectorSource.strategy_ = function (extent, resolution) {
-      var newExtent = getExtentWithFactor(1, extent);
+      var newExtent = getExtentWithFactor(0.5, extent);
 
       var z = tileGrid.getZForResolution(resolution);
       var tileRange = tileGrid.getTileRangeForExtentAndZ(newExtent, z);
