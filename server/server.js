@@ -54,10 +54,7 @@ app.get('/se/getFeaturesById', function(req, res){
       "type": "FeatureCollection",
         "features": []
   };
-  /*console.log("----------------------------------------");
-  console.log("----------------------------------------");
-  console.log("----------------------------------------");
-  console.log("length: ", req.param('ids'),  req.param('ids'));*/
+
   var ids = req.param('ids');
   var layerName = req.param('layer');
   var dbName = req.param('db');
@@ -65,10 +62,6 @@ app.get('/se/getFeaturesById', function(req, res){
   var idColumn = req.param('idColumn');
   var clipBig = req.param('clipBig');
   var extent = req.param('extent');
-
-  if(clipBig == true){
-    //console.log("clipBig true");
-  }
 
   var extentConverted = extent.map(function (x) {
     return parseFloat(x, 10);
@@ -78,16 +71,6 @@ app.get('/se/getFeaturesById', function(req, res){
 
   var extentArea = (extent[2] - extent[0]) * (extent[3] - extent[1]);
   var queryString;
-
-  /**
-   * if(notCached == ""){
-        notCached = "'" + ids[i] + "'";
-      } else {
-        notCached = notCached + ", '" +  ids[i] + "'";
-      }
-
-   */
-
 
   if(clipBig != "true"){
     queryString = ' SELECT ' + idColumn + ' AS id, ST_AsGeoJSON(' + geomRow + ') AS geom  FROM ' + layerName + ' WHERE ' + idColumn + ' IN(' + ids + ')';
@@ -120,6 +103,8 @@ app.get('/se/getFeaturesById', function(req, res){
       // make feature from every row
       query.on('row', function(row) {
         var geom;
+        var original_geom = true;
+
         if(clipBig != "true"){
           geom = row.geom;
         } else {
@@ -127,13 +112,15 @@ app.get('/se/getFeaturesById', function(req, res){
             geom = row.original_geom;
           } else {
             geom = row.clipped_geom;
+            original_geom = false;
           }
         }
   
         var jsonFeature = {
           "type": "Feature",
           "properties": {
-            "id": row.id
+            "id": row.id,
+            "original_geom": original_geom
           },
           "geometry": JSON.parse(geom)
         };

@@ -43,40 +43,21 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
     "extent": [a[0], a[1], b[0], b[1]]
   };
 
-  setTimeout(function(){  
-    $.ajax({
-      url: this_.url + data.requestType,
-      type: "get",
-      data: data,
-      datatype: 'json',
-      success: function(data){
-        //console.log(data);
-        this_.loaderSuccess(data, function(responseFeatures){
-          callback(responseFeatures);
-        });
-      },
-      error:function(er){
-        return console.log("chyba: ", er);
-      }   
-    }); 
-  }, 0);
-  /*
   $.ajax({
-    url: this.url + data.requestType,
+    url: this_.url + data.requestType,
     type: "get",
     data: data,
     datatype: 'json',
     success: function(data){
-      console.log(data);
+      //console.log(data);
       this_.loaderSuccess(data, function(responseFeatures){
-        console.log(responseFeatures);
         callback(responseFeatures);
       });
     },
     error:function(er){
       return console.log("chyba: ", er);
     }   
-  }); */
+  }); 
 
 };
 
@@ -126,8 +107,6 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
         try {
           callback(features);
           this_.remaining--;
-          console.log("remaining: ", this_.remaining);
-          console.log("Debug remaining: ", this_.debugRemaining);
         } catch (err) {
           console.log(err);
         }
@@ -138,6 +117,7 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
       }   
     }); 
   } else {
+    callback({});
     console.log('je to v haji');
   }
 };
@@ -171,18 +151,11 @@ spatialIndexLoader.prototype.selectIdToDownload = function(ids){
 };
 
 spatialIndexLoader.prototype.selectNotCachedId = function(ids) {
-  //var notCached = "";
   var notCached = [];
   for (var i = 0; i < ids.length; i++) {
     if(this.idCache.indexOf(ids[i]) == -1){
       this.idCache.push(ids[i]);
       notCached.push(ids[i]);
-      /*if(notCached == ""){
-        notCached = "'" + ids[i] + "'";
-      } else {
-        notCached = notCached + ", '" +  ids[i] + "'";
-      }*/
-
     }
   };
   return notCached;

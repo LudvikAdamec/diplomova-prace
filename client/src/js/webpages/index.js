@@ -28,13 +28,18 @@ goog.require('ol.source.OSM');
 
 goog.require('spatialIndexLoader');
 goog.require('featuresOperations');
+goog.require('mergeTools');
+
+goog.require('ruianStyle');
+
 
 /**
  * The main function.
  */
  app.wp.index = function() {
+
   var method = "spatialIndexing";
-  //var method = "vectorTiling";
+  var method = "vectorTiling";
   
   var styles = [
   new ol.style.Style({
@@ -81,7 +86,7 @@ goog.require('featuresOperations');
     source: new ol.source.OSM()
   });
 
-  map.addLayer(bg);
+  //map.addLayer(bg);
 
   var geojsonFormat = new ol.format.GeoJSON({
     defaultDataProjection: 'EPSG:4326'
@@ -132,12 +137,25 @@ goog.require('featuresOperations');
       "url" : "http://localhost:9001/se/"      
     }*/
 
+
+    /**
+     * Create instance of loader and mergeTool then create loaderFunction which call loaderFunction in loader and add callback function param
+     */
+    console.log(mergeTool);
+    var mergeTool = new mergeTools({
+      "featureFormat": geojsonFormat
+    });
     var loader = new spatialIndexLoader(loaderParams);
-    
     var loaderFunction = function(extent, resolution, projection) {
       var callback = function(responseFeatures){
         for (var j = 0; j < responseFeatures.length; j++) {
-          setTimeout(geojsonFeatureToLayer(responseFeatures[j], vector), 0);
+          if(responseFeatures[j].properties.original_geom){
+            setTimeout(geojsonFeatureToLayer(responseFeatures[j], vector), 0);
+          } else {
+            mergeTool.addFeatures(responseFeatures[j]);
+            mergeTool.merge();
+          }
+          //console.log(responseFeatures[j]);
         }
       };
       loader.loaderFunction(extent,resolution, projection, callback);
@@ -149,13 +167,19 @@ goog.require('featuresOperations');
       strategy: ol.loadingstrategy.tile(tileGrid)
     });
 
+    var ruian = new ruianStyle();
+    var ruianStyleFunction = ruian.createStyle();
+
+
     var vector = new ol.layer.Vector({
       source: vectorSource,
-      style: styles
+      style: ruianStyleFunction
     });
 
-    map.addLayer(vector);
+    mergeTool.setTargetLayer(vector);
 
+    map.addLayer(vector);
+    console.log("source", vectorSource, " layer", vector);
 
     /**
      * get map extent for loading behind current map
@@ -284,26 +308,11 @@ goog.require('featuresOperations');
       style: styleFunction
     });
 
-    /**
-     * stores loaded data before merging and adding to map
-     * @type {Array}
-     */
-     var tilesToMerge = [];
 
-     var allFeatures = [];
-    /**
-     * Simple function for merging timing 
-     * @return {[type]} [description]
-     */
-     var mergeTiles = function(){
-      while(tilesToMerge.length) {
-        var dlazdice = tilesToMerge.shift();
-        var geojsonTile = topojson.feature(dlazdice, dlazdice.objects.vectile);
-        if(geojsonTile.features.length > 0) {
-          mergeFeatures(allFeatures, geojsonTile.features);
-        }
-      }
-    };
+    var merge = new mergeTools({
+      "targetLayer": vectorLayer,
+      "featureFormat": geojsonFormat
+    });
 
     var numberOfLoadingTiles = 0;
     
@@ -314,10 +323,10 @@ goog.require('featuresOperations');
      */
      var successFunction = function(response){
       goog.asserts.assert(numberOfLoadingTiles>0);
-      tilesToMerge.push(JSON.parse(response));
+      merge.addTiles(JSON.parse(response));
       numberOfLoadingTiles--;
       if(!numberOfLoadingTiles) {
-        mergeTiles();
+        merge.merge();
       }
     };
 
@@ -325,7 +334,7 @@ goog.require('featuresOperations');
       goog.asserts.assert(numberOfLoadingTiles>0);
       numberOfLoadingTiles--;
       if(!numberOfLoadingTiles) {
-        mergeTiles();
+        merge.merge();
       }
     };
 
@@ -346,77 +355,6 @@ goog.require('featuresOperations');
         tileGrid: tileGrid  
       })
     });
-
-    var operations = new featuresOperations();
-
-    /**
-     * function for finding feature parts, merging and adding to vectorLayer
-     * @param  {object} features already existing and merged features
-     * @param  {object} featuresToMerge features to merge
-     * @return {[type]}      [description]
-     */
-     var mergeFeatures = function(features, featuresToMerge) {
-
-      var featureToFeatures = function(f) {
-        goog.asserts.assert(f.geometry.type === 'Polygon'
-          || f.geometry.type === 'MultiPolygon');
-        if(f.geometry.type === 'Polygon') {
-          return [f];
-        } else {
-          return goog.array.map(f.geometry.coordinates, function(polygon) {
-            return operations.buildPolygon(polygon, f.properties);
-          });
-        }
-      }
-
-
-      var mergeTwoFeatures = function(f1, f2) {
-        //console.log(f1, f2);
-        var features = featureToFeatures(f1);
-        goog.array.extend(features, featureToFeatures(f2));
-        goog.array.forEach(features, function(f) {
-          goog.asserts.assert(f.geometry.type === 'Polygon');
-        });
-        try {
-          var merged = operations.mergePolygons(features);
-        } catch(e) {
-          console.log(e);
-          merged = f1;
-        }
-        return merged;
-      };
-
-      goog.array.forEach(featuresToMerge, function(ftm) {
-        goog.asserts.assert(ftm.geometry.type === 'Polygon'
-          || ftm.geometry.type === 'MultiPolygon');
-        var ftmId = ftm.properties.id;
-        goog.asserts.assert(!!ftmId);
-
-        var sameIdFeature = goog.array.find(features, function(f) {
-          return f.properties.id === ftmId;
-        });
-
-
-        if(sameIdFeature) {
-          var start = new Date();
-          var merged = mergeTwoFeatures(ftm, sameIdFeature);
-          var olFeatures = vectorLayer.getSource().getFeatures();
-          var olFeature = goog.array.find(olFeatures, function(f) {
-            return f.get('id') === ftmId;
-          });
-          goog.asserts.assert(!!olFeature);
-          var newGeom = geojsonFormat.readGeometry(merged.geometry, {featureProjection: 'EPSG:3857'});
-          olFeature.setGeometry(newGeom);
-          goog.array.remove(features, sameIdFeature);
-          features.push(merged);
-        } else {
-          features.push(ftm);
-          geojsonFeatureToLayer(ftm, vectorLayer);
-        }
-      });
-
-    };
-
 
     map.addLayer(topojsonVTLayer);
     map.addLayer(vectorLayer);
