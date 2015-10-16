@@ -39,34 +39,35 @@ goog.require('ruianStyle');
  app.wp.index = function() {
 
   var method = "spatialIndexing";
-  var method = "vectorTiling";
+  //var method = "vectorTiling";
   
   var styles = [
-  new ol.style.Style({
-    stroke: new ol.style.Stroke({
-      color: 'blue',
-      width: 3
-    }),
-    fill: new ol.style.Fill({
-      color: 'rgba(0, 0, 255, 0.1)'
-    })
-  })/*,
-  new ol.style.Style({
-    image: new ol.style.Circle({
-      radius: 2,
+    new ol.style.Style({
+      stroke: new ol.style.Stroke({
+        color: 'blue',
+        width: 3
+      }),
       fill: new ol.style.Fill({
-        color: 'orange'
+        color: 'rgba(0, 0, 255, 0.1)'
       })
-    }),
-    geometry: function(feature) {
-          var coordinates = feature.getGeometry().getCoordinates()[0];
-          return new ol.geom.MultiPoint(coordinates);
-        }
-      })*/
+    })/*,
+    new ol.style.Style({
+      image: new ol.style.Circle({
+        radius: 2,
+        fill: new ol.style.Fill({
+          color: 'orange'
+        })
+      }),
+      geometry: function(feature) {
+            var coordinates = feature.getGeometry().getCoordinates()[0];
+            return new ol.geom.MultiPoint(coordinates);
+          }
+        })*/
   ];
 
   //var center = [14.46418, 50.0756];
   var center = [15.2, 49.43];
+  var initZoom = 17;
 
   var map = new ol.Map({
     layers: [],
@@ -76,7 +77,7 @@ goog.require('ruianStyle');
         center: ol.proj.fromLonLat(center),
         projection: 'EPSG:3857',
         maxZoom: 22,
-        zoom: 17
+        zoom: initZoom
       })
   });
 
@@ -96,6 +97,11 @@ goog.require('ruianStyle');
     tileSize: 256
   });
 
+  var testGrid = ol.tilegrid.createXYZ({
+    tileSize: 256
+  });
+
+
 
   /**
    * Create new ol.features from geojson feature and added to layer
@@ -114,12 +120,19 @@ goog.require('ruianStyle');
   if(method == "spatialIndexing"){
 
     var loaderParams = {
-      "layerName" : "parcelswgs", //"parcelswgs";
-      "dbname" : "vfr",
-      "geomColumn" : "geom_4326",
-      "idColumn" : "ogc_fid",
-      "url" : "http://localhost:9001/se/"
-    };
+      "map": {
+        "map" : map,
+        "initZoom" : initZoom
+      },
+      "db": {
+        "layerName" : "parcelswgs", //"parcelswgs";
+        "dbname" : "vfr",
+        "geomColumn" : "geom_4326",
+        "idColumn" : "ogc_fid",
+        "url" : "http://localhost:9001/se/"
+      } 
+    }
+    
 
     /*var loaderParams = {
       "layerName" : "okrsky", //"parcelswgs";
@@ -136,14 +149,25 @@ goog.require('ruianStyle');
       "idColumn" : "gid",
       "url" : "http://localhost:9001/se/"      
     }*/
+    var geojsonFeatureToLayer = function(feature, layer ) {
+      var id = feature.properties.id;
+      var olFeature =  geojsonFormat.readFeature(feature, {featureProjection: 'EPSG:3857'});
+      goog.asserts.assert(!!olFeature.get('id'));
 
+      if(vectorSource.zooms[map.getView().getZoom()]){
+        vectorSource.zooms[map.getView().getZoom()].push(olFeature);
+      } else {
+        vectorSource.zooms[map.getView().getZoom()] = [olFeature];
+      }
+    };
 
     /**
      * Create instance of loader and mergeTool then create loaderFunction which call loaderFunction in loader and add callback function param
      */
     console.log(mergeTool);
     var mergeTool = new mergeTools({
-      "featureFormat": geojsonFormat
+      "featureFormat": geojsonFormat,
+      "map": map
     });
     var loader = new spatialIndexLoader(loaderParams);
     var loaderFunction = function(extent, resolution, projection) {
@@ -161,11 +185,54 @@ goog.require('ruianStyle');
       loader.loaderFunction(extent,resolution, projection, callback);
     };
 
+    ol.source.Vector.prototype.zooms = {
+      16: [],
+      17: [],
+      18: [],
+      19: []
+    };
+
+    ol.source.Vector.prototype.forEachFeatureInExtentAtResolution = function(extent, resolution, f, opt_this) {
+      var features = this.zooms[map.getView().getZoom()];
+      if(features){
+        console.log(features);
+        var keys = Object.keys(features); 
+        if(keys.length){
+          var i = 0;
+          var ii = keys.length;
+          for (i; i < ii; ++i) {
+            var result = f.call(opt_this, features[keys[i]]);
+            if (result) {
+              return result;
+            }
+          } 
+        }
+      }
+      return undefined;
+    };
+
+    ol.source.Vector.prototype.getFeatures = function() {
+      var zooms = this.zooms;
+      var features = [];
+      var key;
+      for (key in zooms) {
+        goog.array.extend(features, zooms[key]);
+      }
+      //console.log(features);
+      return features;
+    };
+
+
+
+
+
     var vectorSource = new ol.source.Vector({
       projection: 'EPSG:900913',
       loader: loaderFunction,
       strategy: ol.loadingstrategy.tile(tileGrid)
     });
+
+    console.log(vectorSource.zooms);
 
     var ruian = new ruianStyle();
     var ruianStyleFunction = ruian.createStyle();

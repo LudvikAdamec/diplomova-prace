@@ -28,6 +28,8 @@ mergeTools = function(mergeParams) {
 
   this.featureFormat = mergeParams.featureFormat;
 
+  this.map = mergeParams.map;
+
 
 }
 
@@ -84,6 +86,18 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge) {
     layer.getSource().addFeature(olFeature);
   };
 
+  var geojsonFeatureToLayer = function(feature, layer ) {
+          var id = feature.properties.id;
+    var olFeature =  this_.featureFormat.readFeature(feature, {featureProjection: 'EPSG:3857'});
+    goog.asserts.assert(!!olFeature.get('id'));
+
+      if(layer.getSource().zooms[this_.map.getView().getZoom()]){
+        layer.getSource().zooms[this_.map.getView().getZoom()].push(olFeature);
+      } else {
+        layer.getSource().zooms[this_.map.getView().getZoom()] = [olFeature];
+      }
+    };
+
   var featureToFeatures = function(f) {
     goog.asserts.assert(f.geometry.type === 'Polygon'
       || f.geometry.type === 'MultiPolygon');
@@ -120,6 +134,7 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge) {
     goog.asserts.assert(!!ftmId);
 
     var sameIdFeature = goog.array.find(features, function(f) {
+      //console.log("features: ", f.properties.id === ftmId);
       return f.properties.id === ftmId;
     });
 
@@ -131,7 +146,7 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge) {
       var olFeature = goog.array.find(olFeatures, function(f) {
         return f.get('id') === ftmId;
       });
-      goog.asserts.assert(!!olFeature);
+      //goog.asserts.assert(!!olFeature);
       var newGeom = this_.featureFormat.readGeometry(merged.geometry, {featureProjection: 'EPSG:3857'});
       olFeature.setGeometry(newGeom);
       goog.array.remove(features, sameIdFeature);

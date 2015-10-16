@@ -11,8 +11,9 @@ goog.require('goog.array');
  * @param  {[type]} layerName [description]
  * @return {[type]}           [description]
  */
-spatialIndexLoader = function(dbParams) {
-
+spatialIndexLoader = function(params) {
+    var dbParams = params.db;
+    this.map = params.map.map;
     this.url = dbParams.url;// "http://localhost:9001/se/";
     this.layerName = dbParams.layerName; //"parcelswgs";
     this.dbname = dbParams.dbname;
@@ -21,7 +22,25 @@ spatialIndexLoader = function(dbParams) {
     this.idCache = [];
     this.clipBig = true;
     this.remaining = 0;
+    this.actualZoom = params.map.initZoom;
+    this.bindZoom();
 }
+
+spatialIndexLoader.prototype.bindZoom = function() {
+  var this_ = this;
+
+  this.map.getView().on('propertychange', function(e) {
+   switch (e.key) {
+      case 'resolution':
+        var newZoom = this_.map.getView().getZoom();
+        console.log("before: ", this_.actualZoom, " now: ", newZoom );
+        this_.actualZoom = newZoom;
+        console.log(e.oldValue);
+        console.log(e);
+        break;
+   }
+  });
+};
 
 spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, projection, callback) {
   var this_ = this;
