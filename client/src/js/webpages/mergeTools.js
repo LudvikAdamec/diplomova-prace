@@ -16,42 +16,50 @@ mergeTools = function(mergeParams) {
   this.tilesToMerge = [];
 
   this.featuresToMerge = [];
-  
-  this.allFeatures = [];
-  
-  this.targetLayer; 
-  if(mergeParams.targetLayer){
-    this.targetLayer = mergeParams.targetLayer;
-  }
 
+  this.featuresToMergeOnZoom = {
+    16: [],
+    17: [],
+    18: [],
+    19: []
+  };
+
+  this.allFeaturesOnZoom = {
+    16: [],
+    17: [],
+    18: [],
+    19: []
+  };
+
+  this.allFeatures = [];
+  this.featuresOnZoom = [];
+  
   this.operations = new featuresOperations();
 
   this.featureFormat = mergeParams.featureFormat;
 
   this.map = mergeParams.map;
-
-
-}
-
-mergeTools.prototype.setTargetLayer = function(layer){
-  this.targetLayer = layer;
 }
 
 mergeTools.prototype.addTiles = function (tile) {
   this.tilesToMerge.push(tile);
 };
 
-mergeTools.prototype.addFeatures = function (feature) {
+mergeTools.prototype.addFeaturesOnZoom = function (feature, zoom) {
   if(feature.geometry.type === "Polygon" || feature.geometry.type === "MultiPolygon"){
-    this.featuresToMerge.push(feature);
+    this.featuresToMergeOnZoom[zoom].push(feature);
   }
 };
 
-mergeTools.prototype.merge = function () {
+mergeTools.prototype.merge = function (callback, zoom) {
   if(this.tilesToMerge.length){
-    this.mergeTiles();
+    this.mergeTiles(callback);
+  }
+  else if(this.featuresToMergeOnZoom[zoom].length) {
+    this.mergeFeatures(this.allFeaturesOnZoom[zoom], this.featuresToMergeOnZoom[zoom], callback, zoom);
+    this.featuresToMergeOnZoom[zoom] = [];
   } else if(this.featuresToMerge.length) {
-    this.mergeFeatures(this.allFeatures, this.featuresToMerge);
+    this.mergeFeatures(this.allFeatures, this.featuresToMerge, callback);
     this.featuresToMerge = [];
   }
 };
@@ -60,12 +68,12 @@ mergeTools.prototype.merge = function () {
  * Simple function for merging timing 
  * @return {[type]} [description]
  */
-mergeTools.prototype.mergeTiles = function(){
+mergeTools.prototype.mergeTiles = function(callback){
   while(this.tilesToMerge.length) {
     var dlazdice = this.tilesToMerge.shift();
     var geojsonTile = topojson.feature(dlazdice, dlazdice.objects.vectile);
     if(geojsonTile.features.length > 0) {
-      this.mergeFeatures(this.allFeatures, geojsonTile.features);
+      this.mergeFeatures(this.allFeatures, geojsonTile.features, callback);
     }
   }
 };
@@ -76,7 +84,7 @@ mergeTools.prototype.mergeTiles = function(){
  * @param  {object} featuresToMerge features to merge
  * @return {[type]}      [description]
  */
-mergeTools.prototype.mergeFeatures = function(features, featuresToMerge) {
+mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callback, zoom) {
   var this_ = this;
 
   var geojsonFeatureToLayer = function(feature, layer ) {
@@ -112,7 +120,6 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge) {
 
 
   var mergeTwoFeatures = function(f1, f2) {
-    //console.log(f1, f2);
     var features = featureToFeatures(f1);
     goog.array.extend(features, featureToFeatures(f2));
     goog.array.forEach(features, function(f) {
@@ -134,7 +141,6 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge) {
     goog.asserts.assert(!!ftmId);
 
     var sameIdFeature = goog.array.find(features, function(f) {
-      //console.log("features: ", f.properties.id === ftmId);
       return f.properties.id === ftmId;
     });
 
@@ -142,18 +148,20 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge) {
     if(sameIdFeature) {
       var start = new Date();
       var merged = mergeTwoFeatures(ftm, sameIdFeature);
-      var olFeatures = this_.targetLayer.getSource().getFeatures();
-      var olFeature = goog.array.find(olFeatures, function(f) {
-        return f.get('id') === ftmId;
-      });
-      //goog.asserts.assert(!!olFeature);
       var newGeom = this_.featureFormat.readGeometry(merged.geometry, {featureProjection: 'EPSG:3857'});
-      olFeature.setGeometry(newGeom);
       goog.array.remove(features, sameIdFeature);
       features.push(merged);
+      callback({
+        "feature" : ftm,
+        "geometry": newGeom,
+        "update": true
+      });
     } else {
       features.push(ftm);
-      geojsonFeatureToLayer(ftm, this_.targetLayer);
+      callback({
+        "geometry": ftm,
+        "update": false
+      });
     }
   });
 

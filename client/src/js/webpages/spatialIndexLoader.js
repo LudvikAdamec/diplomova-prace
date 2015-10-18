@@ -19,28 +19,18 @@ spatialIndexLoader = function(params) {
     this.dbname = dbParams.dbname;
     this.geomRow = dbParams.geomColumn;
     this.idColumn = dbParams.idColumn;
+
+    this.cacheIdByZoom = {
+      16: [],
+      17: [],
+      18: [],
+      19: []
+    };
+
     this.idCache = [];
     this.clipBig = true;
     this.remaining = 0;
-    this.actualZoom = params.map.initZoom;
-    this.bindZoom();
 }
-
-spatialIndexLoader.prototype.bindZoom = function() {
-  var this_ = this;
-
-  this.map.getView().on('propertychange', function(e) {
-   switch (e.key) {
-      case 'resolution':
-        var newZoom = this_.map.getView().getZoom();
-        console.log("before: ", this_.actualZoom, " now: ", newZoom );
-        this_.actualZoom = newZoom;
-        console.log(e.oldValue);
-        console.log(e);
-        break;
-   }
-  });
-};
 
 spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, projection, callback) {
   var this_ = this;
@@ -56,7 +46,7 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
     "idColumn": this.idColumn,
     //"x": a[0] - (a[0] - b[0]),
     //"y": a[1] - (a[1] - b[1]),
-    //"z": map.getView().getZoom(),
+    "zoom": this.map.getView().getZoom(),
     "clipBig": this.clipBig,
     "requestType": "getFeaturesIdInBbox",
     "extent": [a[0], a[1], b[0], b[1]]
@@ -69,8 +59,8 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
     datatype: 'json',
     success: function(data){
       //console.log(data);
-      this_.loaderSuccess(data, function(responseFeatures){
-        callback(responseFeatures);
+      this_.loaderSuccess(data, function(responseFeatures, zoom){
+        callback(responseFeatures,zoom);
       });
     },
     error:function(er){
@@ -87,7 +77,7 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
   
   var idToDownload;// = Object.keys( data.featuresId );
   if(this.clipBig == true){
-    idToDownload = this.selectIdToDownload( data.featuresId );
+    idToDownload = this.selectIdToDownload( data.featuresId , data.zoom);
   } else {
     idToDownload = this.selectNotCachedId(Object.keys(data.featuresId));
   }
@@ -114,7 +104,7 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
         "db": this.dbname,
         "geom": this.geomRow,
         "idColumn": this.idColumn,
-        //"z": TODO: need to be done for possible genralization
+        "zoom": data.zoom,
         "requestType": "getFeaturesById",
         "ids": stringIds,
         "clipBig": this.clipBig,
@@ -124,7 +114,7 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
       success: function(data){
         var features = data.FeatureCollection.features;
         try {
-          callback(features);
+          callback(features, data.zoom);
           this_.remaining--;
         } catch (err) {
           console.log(err);
@@ -137,11 +127,11 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
     }); 
   } else {
     callback({});
-    console.log('je to v haji');
+    console.log('no geometry for downloading');
   }
 };
 
-spatialIndexLoader.prototype.selectIdToDownload = function(ids){
+spatialIndexLoader.prototype.selectIdToDownload = function(ids, zoom){
   var keys = Object.keys(ids);
   if(keys.length == 0){
     return false;
@@ -162,17 +152,22 @@ spatialIndexLoader.prototype.selectIdToDownload = function(ids){
     }
   };
 
-  var idsNotInCache = this.selectNotCachedId(toCache);
+  var idsNotInCache = this.selectNotCachedId(toCache, zoom);
   idToDownload = counterBigToDownl.concat(idsNotInCache);
 
   return idToDownload;
 
 };
 
-spatialIndexLoader.prototype.selectNotCachedId = function(ids) {
+spatialIndexLoader.prototype.selectNotCachedId = function(ids, zoom) {
   var notCached = [];
   for (var i = 0; i < ids.length; i++) {
-    if(this.idCache.indexOf(ids[i]) == -1){
+    if(zoom){
+      if (this.cacheIdByZoom[zoom].indexOf(ids[i]) == -1){
+        this.cacheIdByZoom[zoom].push(ids[i]);
+        notCached.push(ids[i]);
+      }
+    } else if (this.idCache.indexOf(ids[i]) == -1){
       this.idCache.push(ids[i]);
       notCached.push(ids[i]);
     }

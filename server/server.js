@@ -90,10 +90,6 @@ app.get('/se/getFeaturesById', function(req, res){
        "WHERE " + idColumn + " IN(" + ids + ")";
   }  
 
-  //console.log(queryString);
-
-  //console.log(queryString);
-
 
   var connectionString = "postgres://postgres:postgres@localhost/" + dbName;
 
@@ -131,7 +127,7 @@ app.get('/se/getFeaturesById', function(req, res){
       query.on('end', function() {
           client.end();
           //console.log(feature_collection);
-          res.json({ "FeatureCollection" : feature_collection, "ids": ids });
+          res.json({ "FeatureCollection" : feature_collection, "ids": ids, "zoom": req.param('zoom') });
       });
 
       if(err) {
@@ -181,7 +177,7 @@ app.get('/se/getFeaturesIdInBbox', function(req, res){
 
       query.on('end', function() {
           client.end();
-          res.json({ "featuresId" : results, "extent": extent });
+          res.json({ "featuresId" : results, "extent": extent, "zoom": req.param('zoom') });
       });
 
       if(err) {

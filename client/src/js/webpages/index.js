@@ -39,7 +39,7 @@ goog.require('ruianStyle');
  app.wp.index = function() {
 
   var method = "spatialIndexing";
-  //var method = "vectorTiling";
+  var method = "vectorTiling";
   
   var styles = [
     new ol.style.Style({
@@ -87,7 +87,7 @@ goog.require('ruianStyle');
     source: new ol.source.OSM()
   });
 
-  //map.addLayer(bg);
+  map.addLayer(bg);
 
   var geojsonFormat = new ol.format.GeoJSON({
     defaultDataProjection: 'EPSG:4326'
@@ -121,8 +121,7 @@ goog.require('ruianStyle');
 
     var loaderParams = {
       "map": {
-        "map" : map,
-        "initZoom" : initZoom
+        "map" : map
       },
       "db": {
         "layerName" : "parcelswgs", //"parcelswgs";
@@ -134,21 +133,6 @@ goog.require('ruianStyle');
     }
     
 
-    /*var loaderParams = {
-      "layerName" : "okrsky", //"parcelswgs";
-      "dbname" : "vfr",
-      "geomColumn" : "geom",
-      "idColumn" : "gid",
-      "url" : "http://localhost:9001/se/"      
-    }
-
-    var loaderParams = {
-      "layerName" : "uzemni_plan", //"parcelswgs";
-      "dbname" : "vfr",
-      "geomColumn" : "geom",
-      "idColumn" : "gid",
-      "url" : "http://localhost:9001/se/"      
-    }*/
     var geojsonFeatureToLayer = function(feature, layer ) {
       var id = feature.properties.id;
       var olFeature =  geojsonFormat.readFeature(feature, {featureProjection: 'EPSG:3857'});
@@ -164,22 +148,36 @@ goog.require('ruianStyle');
     /**
      * Create instance of loader and mergeTool then create loaderFunction which call loaderFunction in loader and add callback function param
      */
-    console.log(mergeTool);
     var mergeTool = new mergeTools({
       "featureFormat": geojsonFormat,
       "map": map
     });
+
     var loader = new spatialIndexLoader(loaderParams);
+
     var loaderFunction = function(extent, resolution, projection) {
-      var callback = function(responseFeatures){
+      var callback = function(responseFeatures, zoom){
         for (var j = 0; j < responseFeatures.length; j++) {
           if(responseFeatures[j].properties.original_geom){
-            setTimeout(geojsonFeatureToLayer(responseFeatures[j], vector), 0);
+            geojsonFeatureToLayer(responseFeatures[j], vector);
           } else {
-            mergeTool.addFeatures(responseFeatures[j]);
-            mergeTool.merge();
+
+            var mergeCallback = function(obj){
+              if(!obj.update){
+                geojsonFeatureToLayer(obj.geometry, vector);
+              } else {
+                var olFeatures = vector.getSource().getFeatures();
+                var olFeature = goog.array.find(olFeatures, function(f) {
+                  return f.get('id') === obj.feature.properties.id;
+                });
+                goog.asserts.assert(!!olFeature);
+                olFeature.setGeometry(obj.geometry);
+              }
+            };
+            mergeTool.addFeaturesOnZoom(responseFeatures[j], zoom);
+            mergeTool.merge(mergeCallback, zoom);
+
           }
-          //console.log(responseFeatures[j]);
         }
       };
       loader.loaderFunction(extent,resolution, projection, callback);
@@ -189,13 +187,14 @@ goog.require('ruianStyle');
       16: [],
       17: [],
       18: [],
-      19: []
+      19: [],
+      20: []
     };
 
     ol.source.Vector.prototype.forEachFeatureInExtentAtResolution = function(extent, resolution, f, opt_this) {
       var features = this.zooms[map.getView().getZoom()];
-      if(features){
-        console.log(features);
+      //console.log(features);
+      if(features.length){
         var keys = Object.keys(features); 
         if(keys.length){
           var i = 0;
@@ -222,10 +221,6 @@ goog.require('ruianStyle');
       return features;
     };
 
-
-
-
-
     var vectorSource = new ol.source.Vector({
       projection: 'EPSG:900913',
       loader: loaderFunction,
@@ -240,10 +235,18 @@ goog.require('ruianStyle');
 
     var vector = new ol.layer.Vector({
       source: vectorSource,
-      style: ruianStyleFunction
+      style: new ol.style.Style({
+        stroke: new ol.style.Stroke({
+          color: 'blue',
+          width: 1
+        }),
+        fill: new ol.style.Fill({
+          color: 'rgba(100, 0, 255, 0.5)'
+        })
+      })
     });
 
-    mergeTool.setTargetLayer(vector);
+    //mergeTool.setTargetLayer(vector);
 
     map.addLayer(vector);
     console.log("source", vectorSource, " layer", vector);
@@ -290,32 +293,6 @@ goog.require('ruianStyle');
 
   } else if (method == "vectorTiling"){
     var styles = {
-      'Point': [new ol.style.Style({
-        image: new ol.style.Circle({
-          radius: 5,
-          fill: null,
-          stroke: new ol.style.Stroke({color: 'red', width: 1})
-        })
-      })],
-      'LineString': [new ol.style.Style({
-        stroke: new ol.style.Stroke({
-          color: 'green',
-          width: 1
-        })
-      })],
-      'MultiLineString': [new ol.style.Style({
-        stroke: new ol.style.Stroke({
-          color: 'green',
-          width: 1
-        })
-      })],
-      'MultiPoint': [new ol.style.Style({
-        image: new ol.style.Circle({
-          radius: 5,
-          fill: null,
-          stroke: new ol.style.Stroke({color: 'red', width: 1})
-        })
-      })],
       'MultiPolygon': [new ol.style.Style({
         stroke: new ol.style.Stroke({
           color: 'yellow',
@@ -328,11 +305,10 @@ goog.require('ruianStyle');
       'Polygon': [new ol.style.Style({
         stroke: new ol.style.Stroke({
           color: 'blue',
-          lineDash: [4],
-          width: 3
+          width: 1
         }),
         fill: new ol.style.Fill({
-          color: 'rgba(155, 0, 155, 0.3)'
+          color: 'rgba(20, 100, 255, 0.5)'
         })
       })],
       'GeometryCollection': [new ol.style.Style({
@@ -349,15 +325,6 @@ goog.require('ruianStyle');
           stroke: new ol.style.Stroke({
             color: 'magenta'
           })
-        })
-      })],
-      'Circle': [new ol.style.Style({
-        stroke: new ol.style.Stroke({
-          color: 'red',
-          width: 2
-        }),
-        fill: new ol.style.Fill({
-          color: 'rgba(255,0,0,0.2)'
         })
       })]
     };
@@ -393,7 +360,21 @@ goog.require('ruianStyle');
       merge.addTiles(JSON.parse(response));
       numberOfLoadingTiles--;
       if(!numberOfLoadingTiles) {
-        merge.merge();
+
+        var mergeCallback = function(obj){
+          if(!obj.update){
+            geojsonFeatureToLayer(obj.geometry, vectorLayer);
+          } else {
+            var olFeatures = vectorLayer.getSource().getFeatures();
+            var olFeature = goog.array.find(olFeatures, function(f) {
+              return f.get('id') === obj.feature.properties.id;
+            });
+            goog.asserts.assert(!!olFeature);
+            olFeature.setGeometry(obj.geometry);
+          }
+        };
+        merge.merge(mergeCallback);
+
       }
     };
 
