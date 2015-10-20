@@ -58,7 +58,6 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
     data: data,
     datatype: 'json',
     success: function(data){
-      //console.log(data);
       this_.loaderSuccess(data, function(responseFeatures, zoom){
         callback(responseFeatures,zoom);
       });
@@ -115,9 +114,8 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
         var features = data.FeatureCollection.features;
         try {
           callback(features, data.zoom);
-          this_.remaining--;
         } catch (err) {
-          console.log(err);
+          console.log("error in callback: ", err);
         }
         
       },
@@ -137,11 +135,7 @@ spatialIndexLoader.prototype.selectIdToDownload = function(ids, zoom){
     return false;
   }
   var toCache = [];
-
-  "'" + keys[i] + "'";
-
   var idToDownload = [];
-
   var counterBigToDownl = [];
 
   for (var i = 0; i < keys.length; i++) {

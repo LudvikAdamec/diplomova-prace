@@ -75,17 +75,19 @@ app.get('/se/getFeaturesById', function(req, res){
   if(clipBig != "true"){
     queryString = ' SELECT ' + idColumn + ' AS id, ST_AsGeoJSON(' + geomRow + ') AS geom  FROM ' + layerName + ' WHERE ' + idColumn + ' IN(' + ids + ')';
   } else {
+    var envelop = "ST_MakeEnvelope(" + extent[0] + ", " + extent[1] + ", " + extent[2] + ", " + extent[3] + ", 4326)";
     var queryString = "" +  
-      "SELECT " +  "ST_Area(ST_MakeEnvelope(" + extent[0] + ", " + extent[1] + ", " + extent[2] + ", " + extent[3] + ", 4326)) AS bbox, "  +
-       idColumn + " AS id, ST_AsGeoJSON(" + geomRow + ") AS geom, ST_Area(geom_4326, true)," + 
-       "CASE   WHEN ST_Area(" + geomRow + " ) > " + (extentArea * 0.2) + 
-          " THEN ST_AsGeoJSON(ST_Intersection( " + 
-                "ST_MakeEnvelope(" + extent[0] + ", " + extent[1] + ", " + extent[2] + ", " + extent[3] + ", 4326)" + ", " + geomRow + " ))" +
-       " ELSE 'null'" +
-       " END AS clipped_geom, " + 
-       "CASE   WHEN ST_Area(" + geomRow + " ) <= " + (extentArea * 0.2) + " THEN " + "ST_AsGeoJSON(" + geomRow + " ) "  +
-       " ELSE 'null' " +
-       " END AS original_geom " +
+      "SELECT " +  "ST_Area(" + envelop + ") AS bbox, "  +
+        idColumn + " AS id, " +
+        "ST_AsGeoJSON(" + geomRow + ") AS geom, " +
+        "ST_Area(geom_4326, true), " + 
+        "CASE   WHEN ST_Area(" + geomRow + " ) > " + (extentArea * 0.2) + 
+          " THEN ST_AsGeoJSON(ST_Intersection( " + envelop + ", " + geomRow + " ))" +
+          " ELSE 'null'" +
+          " END AS clipped_geom, " + 
+        "CASE   WHEN ST_Area(" + geomRow + " ) <= " + (extentArea * 0.2) + " THEN " + "ST_AsGeoJSON(" + geomRow + " ) "  +
+          " ELSE 'null' " +
+          " END AS original_geom " +
        "FROM " + layerName + " " +
        "WHERE " + idColumn + " IN(" + ids + ")";
   }  
@@ -95,7 +97,6 @@ app.get('/se/getFeaturesById', function(req, res){
 
   pg.connect(connectionString, function(err, client, done) {
       var query = client.query(queryString);
-
       // make feature from every row
       query.on('row', function(row) {
         var geom;
@@ -126,7 +127,6 @@ app.get('/se/getFeaturesById', function(req, res){
 
       query.on('end', function() {
           client.end();
-          //console.log(feature_collection);
           res.json({ "FeatureCollection" : feature_collection, "ids": ids, "zoom": req.param('zoom') });
       });
 
@@ -148,22 +148,29 @@ app.get('/se/getFeaturesIdInBbox', function(req, res){
   var extentConverted = extent.map(function (x) {
     return parseFloat(x, 10);
   });
+
+  var envelop =  'ST_MakeEnvelope(' + extentConverted[0] + ', ' + extentConverted[1] + ', ' + extentConverted[2] + ', ' + extentConverted[3] + ', 4326)';
+
   
   if(clipBig == "true"){
     var extentArea = (extentConverted[2] - extentConverted[0]) * (extentConverted[3] - extentConverted[1]);
 
-    //todo: predelat na intersects
+    //todo: predelat efektivne na intersects
     var queryString = ' SELECT ' + idColumn + ', ' +
      ' CASE   WHEN ST_Area(' + geomRow + ' ) > ' + (extentArea * 0.2) + ' THEN 1 ELSE 0 END AS needclip ' +
      ' FROM ' + layerName + 
-     ' WHERE ' + layerName + '.' + geomRow + '&& ST_MakeEnvelope(' + extentConverted[0] + ', ' + extentConverted[1] + ', ' + extentConverted[2] + ', ' + extentConverted[3] + ', 4326)' ;
+     ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop  ;
 
   } else {
-    var queryString = ' SELECT ' + idColumn + ' FROM ' + layerName + ' WHERE ' + layerName + '.' + geomRow + '&& ST_MakeEnvelope(' + extentConverted[0] + ', ' + extentConverted[1] + ', ' + extentConverted[2] + ', ' + extentConverted[3] + ', 4326)' ;
+    var queryString = "" +
+      ' SELECT ' + idColumn +
+      ' FROM ' + layerName + 
+      ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop ;
   }
 
   var connectionString = "postgres://postgres:postgres@localhost/" + dbName;
   var results = {};
+
   pg.connect(connectionString, function(err, client, done) {
       var query = client.query(queryString);
 
@@ -183,10 +190,25 @@ app.get('/se/getFeaturesIdInBbox', function(req, res){
       if(err) {
         console.log(err);
       }
-
   });
 
 });
+
+
+/*
+
+app.get('/fruit/:fruitName/:fruitColor', function(req, res) {
+    var data = {
+        "fruit": {
+            "apple": req.params.fruitName,
+            "color": req.params.fruitColor
+        }
+    }; 
+
+    send.json(data);
+});
+
+ */
 
 app.use('/', express.static(__dirname+'/../'));
 app.use('/public', express.static(__dirname + '../public/'));

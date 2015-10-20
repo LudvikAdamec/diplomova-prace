@@ -27,7 +27,7 @@ goog.require('ol.layer.Tile');
 goog.require('ol.source.OSM');
 
 goog.require('spatialIndexLoader');
-goog.require('featuresOperations');
+//goog.require('featuresOperations');
 goog.require('mergeTools');
 
 goog.require('ruianStyle');
@@ -39,7 +39,7 @@ goog.require('ruianStyle');
  app.wp.index = function() {
 
   var method = "spatialIndexing";
-  var method = "vectorTiling";
+  //var method = "vectorTiling";
   
   var styles = [
     new ol.style.Style({
@@ -50,19 +50,7 @@ goog.require('ruianStyle');
       fill: new ol.style.Fill({
         color: 'rgba(0, 0, 255, 0.1)'
       })
-    })/*,
-    new ol.style.Style({
-      image: new ol.style.Circle({
-        radius: 2,
-        fill: new ol.style.Fill({
-          color: 'orange'
-        })
-      }),
-      geometry: function(feature) {
-            var coordinates = feature.getGeometry().getCoordinates()[0];
-            return new ol.geom.MultiPoint(coordinates);
-          }
-        })*/
+    })
   ];
 
   //var center = [14.46418, 50.0756];
@@ -130,9 +118,8 @@ goog.require('ruianStyle');
         "idColumn" : "ogc_fid",
         "url" : "http://localhost:9001/se/"
       } 
-    }
+    };
     
-
     var geojsonFeatureToLayer = function(feature, layer ) {
       var id = feature.properties.id;
       var olFeature =  geojsonFormat.readFeature(feature, {featureProjection: 'EPSG:3857'});
@@ -193,7 +180,6 @@ goog.require('ruianStyle');
 
     ol.source.Vector.prototype.forEachFeatureInExtentAtResolution = function(extent, resolution, f, opt_this) {
       var features = this.zooms[map.getView().getZoom()];
-      //console.log(features);
       if(features.length){
         var keys = Object.keys(features); 
         if(keys.length){
@@ -217,7 +203,6 @@ goog.require('ruianStyle');
       for (key in zooms) {
         goog.array.extend(features, zooms[key]);
       }
-      //console.log(features);
       return features;
     };
 
@@ -227,10 +212,8 @@ goog.require('ruianStyle');
       strategy: ol.loadingstrategy.tile(tileGrid)
     });
 
-    console.log(vectorSource.zooms);
-
-    var ruian = new ruianStyle();
-    var ruianStyleFunction = ruian.createStyle();
+    //var ruian = new ruianStyle();
+    var ruianStyleFunction = (new ruianStyle()).createStyle();
 
 
     var vector = new ol.layer.Vector({
@@ -245,8 +228,6 @@ goog.require('ruianStyle');
         })
       })
     });
-
-    //mergeTool.setTargetLayer(vector);
 
     map.addLayer(vector);
     console.log("source", vectorSource, " layer", vector);

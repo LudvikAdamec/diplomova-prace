@@ -32,7 +32,7 @@ mergeTools = function(mergeParams) {
   };
 
   this.allFeatures = [];
-  this.featuresOnZoom = [];
+  //this.featuresOnZoom = [];
   
   this.operations = new featuresOperations();
 
@@ -54,8 +54,7 @@ mergeTools.prototype.addFeaturesOnZoom = function (feature, zoom) {
 mergeTools.prototype.merge = function (callback, zoom) {
   if(this.tilesToMerge.length){
     this.mergeTiles(callback);
-  }
-  else if(this.featuresToMergeOnZoom[zoom].length) {
+  } else if(this.featuresToMergeOnZoom[zoom].length) {
     this.mergeFeatures(this.allFeaturesOnZoom[zoom], this.featuresToMergeOnZoom[zoom], callback, zoom);
     this.featuresToMergeOnZoom[zoom] = [];
   } else if(this.featuresToMerge.length) {
@@ -144,7 +143,6 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callbac
       return f.properties.id === ftmId;
     });
 
-
     if(sameIdFeature) {
       var start = new Date();
       var merged = mergeTwoFeatures(ftm, sameIdFeature);
@@ -159,6 +157,7 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callbac
     } else {
       features.push(ftm);
       callback({
+        "feature": ftm,
         "geometry": ftm,
         "update": false
       });
