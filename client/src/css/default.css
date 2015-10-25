@@ -2,5 +2,19 @@ body {
   padding-top: 0px;
 }
 .container-fluid {
-  padding: 20px;
+  padding: 2px;
 }
+
+#map {
+	height: 100%;
+	width: 100%;
+}
+
+.map-overlay {
+	position: absolute;
+	top: 20px;
+	right: 20px;
+	background-color: white;
+	padding: 15px;
+	z-index: 100;
+} 

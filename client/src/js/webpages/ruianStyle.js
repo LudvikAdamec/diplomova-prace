@@ -11,7 +11,7 @@ goog.require('ol.style.Stroke');
 goog.require('ol.style.Style');
 goog.require('ol.style.Circle');
 
-
+//PREPATING styling for multiple layers...based on attributes and more...
 ruianStyle = function(params) {
   this.styles = {
     'original_geom': [new ol.style.Style({

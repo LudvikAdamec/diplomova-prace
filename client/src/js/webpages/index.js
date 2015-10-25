@@ -27,10 +27,7 @@ goog.require('ol.layer.Tile');
 goog.require('ol.source.OSM');
 
 goog.require('spatialIndexLoader');
-//goog.require('featuresOperations');
 goog.require('mergeTools');
-
-goog.require('ruianStyle');
 
 
 /**
@@ -39,21 +36,10 @@ goog.require('ruianStyle');
  app.wp.index = function() {
 
   var method = "spatialIndexing";
-  //var method = "vectorTiling";
-  
-  var styles = [
-    new ol.style.Style({
-      stroke: new ol.style.Stroke({
-        color: 'blue',
-        width: 3
-      }),
-      fill: new ol.style.Fill({
-        color: 'rgba(0, 0, 255, 0.1)'
-      })
-    })
-  ];
+  var method = "vectorTiling";
 
-  //var center = [14.46418, 50.0756];
+
+
   var center = [15.2, 49.43];
   var initZoom = 17;
 
@@ -75,7 +61,7 @@ goog.require('ruianStyle');
     source: new ol.source.OSM()
   });
 
-  map.addLayer(bg);
+  //map.addLayer(bg);
 
   var geojsonFormat = new ol.format.GeoJSON({
     defaultDataProjection: 'EPSG:4326'
@@ -85,100 +71,26 @@ goog.require('ruianStyle');
     tileSize: 256
   });
 
-  var testGrid = ol.tilegrid.createXYZ({
-    tileSize: 256
-  });
 
-
-
-  /**
-   * Create new ol.features from geojson feature and added to layer
-   * @param  {[type]} feature [description]
-   * @param  {[type]} layer   [description]
-   * @return {[type]}         [description]
-   */
-  var geojsonFeatureToLayer = function(feature, layer ) {
-    var id = feature.properties.id;
-    var olFeature =  geojsonFormat.readFeature(feature, {featureProjection: 'EPSG:3857'});
-    goog.asserts.assert(!!olFeature.get('id'));
-    layer.getSource().addFeature(olFeature);
-  };
+  var level0 =  20037508.342789244 + 20037508.342789244;
 
 
   if(method == "spatialIndexing"){
 
-    var loaderParams = {
-      "map": {
-        "map" : map
-      },
-      "db": {
-        "layerName" : "parcelswgs", //"parcelswgs";
-        "dbname" : "vfr",
-        "geomColumn" : "geom_4326",
-        "idColumn" : "ogc_fid",
-        "url" : "http://localhost:9001/se/"
-      } 
-    };
-    
-    var geojsonFeatureToLayer = function(feature, layer ) {
-      var id = feature.properties.id;
-      var olFeature =  geojsonFormat.readFeature(feature, {featureProjection: 'EPSG:3857'});
-      goog.asserts.assert(!!olFeature.get('id'));
-
-      if(vectorSource.zooms[map.getView().getZoom()]){
-        vectorSource.zooms[map.getView().getZoom()].push(olFeature);
-      } else {
-        vectorSource.zooms[map.getView().getZoom()] = [olFeature];
-      }
-    };
-
     /**
-     * Create instance of loader and mergeTool then create loaderFunction which call loaderFunction in loader and add callback function param
+     * zooms is object behaving as cache for ol.features  - zooms later contain array for every zoom level with ol.features
+     * @type {Object}
      */
-    var mergeTool = new mergeTools({
-      "featureFormat": geojsonFormat,
-      "map": map
-    });
-
-    var loader = new spatialIndexLoader(loaderParams);
-
-    var loaderFunction = function(extent, resolution, projection) {
-      var callback = function(responseFeatures, zoom){
-        for (var j = 0; j < responseFeatures.length; j++) {
-          if(responseFeatures[j].properties.original_geom){
-            geojsonFeatureToLayer(responseFeatures[j], vector);
-          } else {
-
-            var mergeCallback = function(obj){
-              if(!obj.update){
-                geojsonFeatureToLayer(obj.geometry, vector);
-              } else {
-                var olFeatures = vector.getSource().getFeatures();
-                var olFeature = goog.array.find(olFeatures, function(f) {
-                  return f.get('id') === obj.feature.properties.id;
-                });
-                goog.asserts.assert(!!olFeature);
-                olFeature.setGeometry(obj.geometry);
-              }
-            };
-            mergeTool.addFeaturesOnZoom(responseFeatures[j], zoom);
-            mergeTool.merge(mergeCallback, zoom);
-
-          }
-        }
-      };
-      loader.loaderFunction(extent,resolution, projection, callback);
-    };
-
-    ol.source.Vector.prototype.zooms = {
-      16: [],
-      17: [],
-      18: [],
-      19: [],
-      20: []
-    };
-
+    ol.source.Vector.prototype.zooms = {};
+    
+    /**
+     *  overriding function for ol.source.Vector - for saving ol.features to independent zooms
+     */
     ol.source.Vector.prototype.forEachFeatureInExtentAtResolution = function(extent, resolution, f, opt_this) {
+      if(this.zooms[map.getView().getZoom()] == undefined){
+        return [];
+      }
+
       var features = this.zooms[map.getView().getZoom()];
       if(features.length){
         var keys = Object.keys(features); 
@@ -196,6 +108,9 @@ goog.require('ruianStyle');
       return undefined;
     };
 
+    /*
+     * overriding function for ol.source.Vector - get features for all loaded zooms
+     */
     ol.source.Vector.prototype.getFeatures = function() {
       var zooms = this.zooms;
       var features = [];
@@ -206,15 +121,117 @@ goog.require('ruianStyle');
       return features;
     };
 
+
+    /**
+     * function add  geojson feature in zoom cache 
+     * @param  {[type]} feature - geojson feature
+     * @param  {[type]} layer   - target ol.layer
+     * @param  {[type]} zoom    - zoom level of feature
+     * @return {undefined}         
+     */
+    var geojsonFeatureToLayer = function(feature, layer, zoom ) {
+      var olFeature =  geojsonFormat.readFeature(feature, {featureProjection: 'EPSG:3857'});
+      goog.asserts.assert(!!olFeature.get('id'));
+
+      if(vectorSource.zooms[zoom]){
+        vectorSource.zooms[zoom].push(olFeature);
+      } else {
+        vectorSource.zooms[zoom] = [olFeature];
+      }
+    };
+
+    /**
+     *  instance of mergeTool
+     */
+    var mergeTool = new mergeTools({
+      "featureFormat": geojsonFormat
+    });
+
+    /**
+     * parameters used ib spatialIndexLoader (make request on server from this parameters)
+     * @type {Object}
+     */
+    var loaderParams = {
+      "db": {
+        "layerName" : "parcelswgs", //"parcelswgs";
+        "dbname" : "vfr",
+        "geomColumn" : "geom_4326",
+        "idColumn" : "ogc_fid",
+        "url" : "http://localhost:9001/se/"
+      } 
+    };
+
+
+    var loader = new spatialIndexLoader(loaderParams);
+
+    /**
+     * count of currently loading extents (after getting response is count decreased)
+     * @type {Number}
+     */
+    var loadingExtents = 0;
+
+
+    /*
+      specific loader function - take care for loading data, merging and displaying them on map
+        - different behaviour for original not divided geometries and splited geometries
+     */
+    var loaderFunction = function(extent, resolution, projection) {
+
+      loadingStatusChange({"statusMessage": 'loading <i class="fa fa-spinner fa-spin"></i>'});
+      
+      var callback = function(responseFeatures, zoom){
+        loadingExtents--;
+        if(loadingExtents == 0){
+          var contentSize = Math.round(loader.loadedContentSize * 100) / 100;
+          loadingStatusChange({
+            "statusMessage": 'extent loaded <i class="fa fa-check"></i>', 
+            "sizeMessage": contentSize + 'mb'
+          });
+        }
+
+        for (var j = 0; j < responseFeatures.length; j++) {
+          //IF is geometry not clipped by BBOX of tile 
+          if(responseFeatures[j].properties.original_geom){
+            geojsonFeatureToLayer(responseFeatures[j], vector, zoom);
+          } else {
+            var mergeCallback = function(responseObject){
+              if(responseObject.mergingFinished){
+                loadingStatusChange({"statusMessage": '<i class="fa fa-check"></i>'});
+              } else {
+                if(!responseObject.updateExisting){
+                  geojsonFeatureToLayer(responseObject.geometry, vector, zoom);
+                } else {
+                  var olFeatures = vector.getSource().getFeatures();
+                  var olFeature = goog.array.find(olFeatures, function(f) {
+                    return f.get('id') === responseObject.feature.properties.id;
+                  });
+                  goog.asserts.assert(!!olFeature);
+                  olFeature.setGeometry(responseObject.geometry);
+                }
+              }
+            };
+
+            mergeTool.addFeaturesOnZoom(responseFeatures[j], zoom);
+            if(loadingExtents == 0 && mergeTool.featuresToMergeOnZoom[zoom].length){
+              loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
+              //mergeCallback will be called multiple times (for every geometry and after merging finished one more)
+              mergeTool.merge(mergeCallback, zoom);
+              vectorSource.changed();
+            }
+          }
+        }
+      };
+
+      var zoom = map.getView().getZoom();
+      loader.loaderFunction(extent,resolution, projection, zoom ,callback);
+      loadingExtents++;
+
+    };
+
     var vectorSource = new ol.source.Vector({
-      projection: 'EPSG:900913',
       loader: loaderFunction,
       strategy: ol.loadingstrategy.tile(tileGrid)
     });
-
-    //var ruian = new ruianStyle();
-    var ruianStyleFunction = (new ruianStyle()).createStyle();
-
 
     var vector = new ol.layer.Vector({
       source: vectorSource,
@@ -230,13 +247,12 @@ goog.require('ruianStyle');
     });
 
     map.addLayer(vector);
-    console.log("source", vectorSource, " layer", vector);
 
     /**
-     * get map extent for loading behind current map
-     * @param  {[type]} factor [description]
-     * @param  {[type]} extent [description]
-     * @return {[type]}        [description]
+     * create extent for loading behind current map - factor increase current map extent (0 = not increased extent)
+     * @param  {[type]} factor
+     * @param  {[type]} extent - current map extent
+     * @return {[type]} new calculated extent or false
      */
     var getExtentWithFactor = function (factor, extent) {
       if(factor > 0){
@@ -273,6 +289,22 @@ goog.require('ruianStyle');
 
 
   } else if (method == "vectorTiling"){
+    /**
+     * Create new ol.features from geojson feature and added to layer
+     * @param  {[type]} feature [description]
+     * @param  {[type]} layer   [description]
+     * @return {[type]}         [description]
+     */
+    
+
+    var geojsonFeatureToLayer = function(feature, layer ) {
+      var id = feature.properties.id;
+      var olFeature =  geojsonFormat.readFeature(feature, {featureProjection: 'EPSG:3857'});
+      goog.asserts.assert(!!olFeature.get('id'));
+      layer.getSource().addFeature(olFeature);
+    };
+
+
     var styles = {
       'MultiPolygon': [new ol.style.Style({
         stroke: new ol.style.Stroke({
@@ -325,7 +357,6 @@ goog.require('ruianStyle');
 
 
     var merge = new mergeTools({
-      "targetLayer": vectorLayer,
       "featureFormat": geojsonFormat
     });
 
@@ -337,23 +368,29 @@ goog.require('ruianStyle');
      * @return {undefined}      [description]
      */
      var successFunction = function(response){
-      goog.asserts.assert(numberOfLoadingTiles>0);
+      goog.asserts.assert(numberOfLoadingTiles > 0);
       merge.addTiles(JSON.parse(response));
       numberOfLoadingTiles--;
       if(!numberOfLoadingTiles) {
 
         var mergeCallback = function(obj){
-          if(!obj.update){
-            geojsonFeatureToLayer(obj.geometry, vectorLayer);
+          if(!obj.mergingFinished){
+            if(!obj.updateExisting){
+              geojsonFeatureToLayer(obj.geometry, vectorLayer);
+            } else {
+              var olFeatures = vectorLayer.getSource().getFeatures();
+              var olFeature = goog.array.find(olFeatures, function(f) {
+                return f.get('id') === obj.feature.properties.id;
+              });
+              goog.asserts.assert(!!olFeature);
+              olFeature.setGeometry(obj.geometry);
+            }
           } else {
-            var olFeatures = vectorLayer.getSource().getFeatures();
-            var olFeature = goog.array.find(olFeatures, function(f) {
-              return f.get('id') === obj.feature.properties.id;
-            });
-            goog.asserts.assert(!!olFeature);
-            olFeature.setGeometry(obj.geometry);
+            loadingStatusChange({"statusMessage": '<i class="fa fa-check"></i>'});
           }
         };
+
+        loadingStatusChange({"statusMessage": '<i class="fa fa-check"></i>'});
         merge.merge(mergeCallback);
 
       }
@@ -363,7 +400,8 @@ goog.require('ruianStyle');
       goog.asserts.assert(numberOfLoadingTiles>0);
       numberOfLoadingTiles--;
       if(!numberOfLoadingTiles) {
-        merge.merge();
+          loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
+          merge.merge();
       }
     };
 
@@ -373,6 +411,7 @@ goog.require('ruianStyle');
       source: new ol.source.TileVector({
         format: new ol.format.TopoJSON(),
         tileLoadFunction: function(url){
+          loadingStatusChange({"statusMessage": 'loading <i class="fa fa-spinner fa-spin"></i>'});
           numberOfLoadingTiles++;
           $.ajax({url: url, success: successFunction, error: errorFunction});
         },
@@ -389,6 +428,21 @@ goog.require('ruianStyle');
     map.addLayer(vectorLayer);
   }
 
+
+  var loadingStatusChange = function (statusObject){    
+    if(statusObject.sizeMessage){
+      var sizeDiv = document.getElementById('sizeStatus');
+      sizeDiv.innerHTML = "";
+      sizeDiv.innerHTML = statusObject.sizeMessage;
+    }
+
+    if(statusObject.statusMessage){
+      var statusDiv = document.getElementById('loadingStatus');
+      statusDiv.innerHTML = "";
+      statusDiv.innerHTML = statusObject.statusMessage;
+    }
+
+  };
 
 };
 

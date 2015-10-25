@@ -13,26 +13,22 @@ goog.require('goog.array');
  */
 spatialIndexLoader = function(params) {
     var dbParams = params.db;
-    this.map = params.map.map;
     this.url = dbParams.url;// "http://localhost:9001/se/";
     this.layerName = dbParams.layerName; //"parcelswgs";
     this.dbname = dbParams.dbname;
     this.geomRow = dbParams.geomColumn;
     this.idColumn = dbParams.idColumn;
 
-    this.cacheIdByZoom = {
-      16: [],
-      17: [],
-      18: [],
-      19: []
-    };
+    this.loadedContentSize = 0;
+
+    this.cacheIdByZoom = {};
 
     this.idCache = [];
     this.clipBig = true;
     this.remaining = 0;
 }
 
-spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, projection, callback) {
+spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, projection, zoom, callback) {
   var this_ = this;
   var a = ol.proj.toLonLat([extent[0], extent[1]]);
   var b = ol.proj.toLonLat([extent[2], extent[3]]);
@@ -44,9 +40,7 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
     "db": this.dbname,
     "geom": this.geomRow,
     "idColumn": this.idColumn,
-    //"x": a[0] - (a[0] - b[0]),
-    //"y": a[1] - (a[1] - b[1]),
-    "zoom": this.map.getView().getZoom(),
+    "zoom": zoom,
     "clipBig": this.clipBig,
     "requestType": "getFeaturesIdInBbox",
     "extent": [a[0], a[1], b[0], b[1]]
@@ -63,6 +57,7 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
       });
     },
     error:function(er){
+      callback([]);
       return console.log("chyba: ", er);
     }   
   }); 
@@ -110,16 +105,19 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
         "extent": extent
       },
       datatype: 'json',
-      success: function(data){
+      success: function(data, status, xhr){
+        this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
+
         var features = data.FeatureCollection.features;
-        try {
+        //try {
           callback(features, data.zoom);
-        } catch (err) {
-          console.log("error in callback: ", err);
-        }
+        //} catch (err) {
+          //console.log("error in callback: ", err);
+        //}
         
       },
       error:function(er){
+        callback([]);
         console.log("chyba: ", er);
       }   
     }); 
@@ -131,9 +129,11 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
 
 spatialIndexLoader.prototype.selectIdToDownload = function(ids, zoom){
   var keys = Object.keys(ids);
+  
   if(keys.length == 0){
     return false;
   }
+  
   var toCache = [];
   var idToDownload = [];
   var counterBigToDownl = [];
@@ -153,10 +153,21 @@ spatialIndexLoader.prototype.selectIdToDownload = function(ids, zoom){
 
 };
 
+
+/**
+ * [selectNotCachedId description]
+ * @param  {[type]} ids  [description]
+ * @param  {[type]} zoom [description] - not mandatory - only if you want caching for zooms?????
+ * @return {[type]}      [description]
+ */
 spatialIndexLoader.prototype.selectNotCachedId = function(ids, zoom) {
   var notCached = [];
   for (var i = 0; i < ids.length; i++) {
     if(zoom){
+      if(!this.cacheIdByZoom[zoom]){
+        this.cacheIdByZoom[zoom] = [];
+      }
+
       if (this.cacheIdByZoom[zoom].indexOf(ids[i]) == -1){
         this.cacheIdByZoom[zoom].push(ids[i]);
         notCached.push(ids[i]);

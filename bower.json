@@ -14,6 +14,7 @@
   "devDependencies": {
     "ol3": "https://github.com/openlayers/ol3.git#~3.7.0",
     "jQuery": "~2.1.4",
-    "jsts": "~0.16.0"
+    "jsts": "~0.16.0",
+    "font-awesome": "~4.4.0"
   }
 }
