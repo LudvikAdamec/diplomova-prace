@@ -39,7 +39,6 @@ goog.require('mergeTools');
   var method = "vectorTiling";
 
 
-
   var center = [15.2, 49.43];
   var initZoom = 17;
 
@@ -361,13 +360,17 @@ goog.require('mergeTools');
     });
 
     var numberOfLoadingTiles = 0;
+    var loadedContentSize = 0;
+
     
     /**
      * [successFunction description]
      * @param  {string} response [description]
      * @return {undefined}      [description]
      */
-     var successFunction = function(response){
+     var successFunction = function(response, status, xhr){
+      loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
+
       goog.asserts.assert(numberOfLoadingTiles > 0);
       merge.addTiles(JSON.parse(response));
       numberOfLoadingTiles--;
@@ -386,7 +389,10 @@ goog.require('mergeTools');
               olFeature.setGeometry(obj.geometry);
             }
           } else {
-            loadingStatusChange({"statusMessage": '<i class="fa fa-check"></i>'});
+            loadingStatusChange({
+              "statusMessage": '<i class="fa fa-check"></i>',
+              "sizeMessage": ((Math.round(loadedContentSize * 100) / 100) + 'mb')
+            });
           }
         };
 
