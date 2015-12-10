@@ -36,11 +36,13 @@ goog.require('mergeTools');
  app.wp.index = function() {
 
   var method = "spatialIndexing";
-  var method = "vectorTiling";
+  //var method = "vectorTiling";
 
 
   var center = [15.2, 49.43];
-  var initZoom = 17;
+  center = [16.554, 49.246]
+  
+  var initZoom = 12;
 
   var map = new ol.Map({
     layers: [],
@@ -152,9 +154,9 @@ goog.require('mergeTools');
      */
     var loaderParams = {
       "db": {
-        "layerName" : "parcelswgs", //"parcelswgs";
+        "layerName" : "obce", //"parcelswgs";
         "dbname" : "vfr",
-        "geomColumn" : "geom_4326",
+        "geomColumn" : "geometry_1",
         "idColumn" : "ogc_fid",
         "url" : "http://localhost:9001/se/"
       } 

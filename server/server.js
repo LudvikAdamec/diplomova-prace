@@ -80,7 +80,7 @@ app.get('/se/getFeaturesById', function(req, res){
       "SELECT " +  "ST_Area(" + envelop + ") AS bbox, "  +
         idColumn + " AS id, " +
         "ST_AsGeoJSON(" + geomRow + ") AS geom, " +
-        "ST_Area(geom_4326, true), " + 
+        "ST_Area(" + geomRow + ", true), " + 
         "CASE   WHEN ST_Area(" + geomRow + " ) > " + (extentArea * 0.2) + 
           " THEN ST_AsGeoJSON(ST_Intersection( " + envelop + ", " + geomRow + " ))" +
           " ELSE 'null'" +
@@ -145,6 +145,8 @@ app.get('/se/getFeaturesIdInBbox', function(req, res){
       idColumn = req.param('idColumn'),
       clipBig = req.param('clipBig');
 
+  //console.log("extent: ", extent);
+
   var extentConverted = extent.map(function (x) {
     return parseFloat(x, 10);
   });
@@ -167,6 +169,8 @@ app.get('/se/getFeaturesIdInBbox', function(req, res){
       ' FROM ' + layerName + 
       ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop ;
   }
+
+  //console.log(queryString);
 
   var connectionString = "postgres://postgres:postgres@localhost/" + dbName;
   var results = {};
