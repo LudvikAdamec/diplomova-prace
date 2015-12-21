@@ -115,6 +115,10 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callbac
 
 
   var mergeTwoFeatures = function(f1, f2) {
+    if(f1.properties.id == 116){
+      console.log(f1.properties.id);
+    }
+    
     var features = featureToFeatures(f1);
     goog.array.extend(features, featureToFeatures(f2));
     goog.array.forEach(features, function(f) {

@@ -49,7 +49,7 @@ app.use('/client/src/', function(req, res, next) {
 });
 
 //TODO: predelat queryString aby získal hodnoty všech atributů a předal je do featureCollection
-app.get('/se/getFeaturesById', function(req, res){
+/*app.get('/se/getFeaturesById', function(req, res){
   var feature_collection = {
       "type": "FeatureCollection",
         "features": []
@@ -81,11 +81,11 @@ app.get('/se/getFeaturesById', function(req, res){
         idColumn + " AS id, " +
         "ST_AsGeoJSON(" + geomRow + ") AS geom, " +
         "ST_Area(" + geomRow + ", true), " + 
-        "CASE   WHEN ST_Area(" + geomRow + " ) > " + (extentArea * 0.2) + 
+        "CASE   WHEN ST_Area(" + geomRow + " ) > " + (extentArea * 0.1) + 
           " THEN ST_AsGeoJSON(ST_Intersection( " + envelop + ", " + geomRow + " ))" +
           " ELSE 'null'" +
           " END AS clipped_geom, " + 
-        "CASE   WHEN ST_Area(" + geomRow + " ) <= " + (extentArea * 0.2) + " THEN " + "ST_AsGeoJSON(" + geomRow + " ) "  +
+        "CASE   WHEN ST_Area(" + geomRow + " ) <= " + (extentArea * 0.1) + " THEN " + "ST_AsGeoJSON(" + geomRow + " ) "  +
           " ELSE 'null' " +
           " END AS original_geom " +
        "FROM " + layerName + " " +
@@ -135,7 +135,7 @@ app.get('/se/getFeaturesById', function(req, res){
       }
   });
 
-});
+});*/
 
 app.get('/se/getFeaturesIdInBbox', function(req, res){
   var extent = req.param('extent'),
@@ -159,7 +159,7 @@ app.get('/se/getFeaturesIdInBbox', function(req, res){
 
     //todo: predelat efektivne na intersects
     var queryString = ' SELECT ' + idColumn + ', ' +
-     ' CASE   WHEN ST_Area(' + geomRow + ' ) > ' + (extentArea * 0.2) + ' THEN 1 ELSE 0 END AS needclip ' +
+     ' CASE   WHEN ST_Area(' + geomRow + ' ) > ' + (extentArea * 0.1) + ' THEN 1 ELSE 0 END AS needclip ' +
      ' FROM ' + layerName + 
      ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop  ;
 
@@ -189,6 +189,219 @@ app.get('/se/getFeaturesIdInBbox', function(req, res){
       query.on('end', function() {
           client.end();
           res.json({ "featuresId" : results, "extent": extent, "zoom": req.param('zoom') });
+      });
+
+      if(err) {
+        console.log(err);
+      }
+  });
+
+});
+
+
+app.get('/se/getGeometryyyyy', function(req, res){
+  /*
+    {
+      “ol.Feature.1”: {type: “Polygon”, coordinates: [...]},
+      “ol.Feature.2”: {type: “Polygon”, coordinates: [...]},
+      ...
+    }
+
+  */
+
+  var featureIds = req.param('featureIds');
+  var geometryLevelId = req.param('geometryLevelId');
+
+  res.json({
+    "featureId1" : {},
+    "featureId2" : {}
+   });
+  
+});
+
+
+app.get('/se/getGeometry', function(req, res){
+  var feature_collection = {
+      "type": "FeatureCollection",
+        "features": []
+  };
+
+  var ids = req.param('ids');
+  var layerName = req.param('layer');
+  var dbName = req.param('db');
+  var geomRow = req.param('geom');
+  var idColumn = req.param('idColumn');
+  var clipBig = req.param('clipBig');
+  var extent = req.param('extent');
+
+  var extentConverted = extent.map(function (x) {
+    return parseFloat(x, 10);
+  });
+
+  extent = extentConverted;
+
+  var extentArea = (extent[2] - extent[0]) * (extent[3] - extent[1]);
+  var queryString;
+
+  if(clipBig != "true"){
+    queryString = ' SELECT ' + idColumn + ' AS id, ST_AsGeoJSON(' + geomRow + ') AS geom, ' +
+                  "ST_XMin(geometry_9) AS minx, ST_YMin(geometry_9) AS miny, ST_XMax(geometry_9) AS maxx, ST_YMax(geometry_9) AS maxy " +
+                  'FROM ' + layerName + ' WHERE ' + idColumn + ' IN(' + ids + ')';
+  } else {
+    var envelop = "ST_MakeEnvelope(" + extent[0] + ", " + extent[1] + ", " + extent[2] + ", " + extent[3] + ", 4326)";
+    var queryString = "" +  
+      "SELECT " +  "ST_Area(" + envelop + ") AS bbox, "  +
+        idColumn + " AS id, " +
+        "ST_AsGeoJSON(" + geomRow + ") AS geom, " +
+        "ST_XMin(geometry_9) AS minx, ST_YMin(geometry_9) AS miny, ST_XMax(geometry_9) AS maxx, ST_YMax(geometry_9) AS maxy, " +
+        "ST_Area(" + geomRow + ", true), " + 
+        "CASE   WHEN ST_Area(" + geomRow + " ) > " + (extentArea * 0.1) + 
+          " THEN ST_AsGeoJSON(ST_Intersection( " + envelop + ", " + geomRow + " ))" +
+          " ELSE 'null'" +
+          " END AS clipped_geom, " + 
+        "CASE   WHEN ST_Area(" + geomRow + " ) <= " + (extentArea * 0.1) + " THEN " + "ST_AsGeoJSON(" + geomRow + " ) "  +
+          " ELSE 'null' " +
+          " END AS original_geom " +
+       "FROM " + layerName + " " +
+       "WHERE " + idColumn + " IN(" + ids + ")";
+  }  
+
+
+  var connectionString = "postgres://postgres:postgres@localhost/" + dbName;
+
+  pg.connect(connectionString, function(err, client, done) {
+      var query = client.query(queryString);
+      // make feature from every row
+      query.on('row', function(row) {
+        var geom;
+        var original_geom = true;
+
+        if(clipBig != "true"){
+          geom = row.geom;
+        } else {
+          if(row.clipped_geom == 'null') {
+            geom = row.original_geom;
+          } else {
+            geom = row.clipped_geom;
+            original_geom = false;
+          }
+        }
+  
+        var jsonFeature = {
+          "type": "Feature",
+          "properties": {
+            "id": row.id,
+            "original_geom": original_geom//,
+            //"geometryN": JSON.parse(geom)           
+          },
+          "geometry": JSON.parse(geom)
+        };
+
+        //console.log(jsonFeature);
+
+        feature_collection.features.push(jsonFeature);
+      });
+
+      query.on('end', function() {
+          client.end();
+          res.json({ "FeatureCollection" : feature_collection, "ids": ids, "zoom": req.param('zoom') });
+      });
+
+      if(err) {
+        console.log(err);
+      }
+  });
+
+});
+
+//TODO: change to return extent
+app.get('/se/getFeaturesById', function(req, res){
+  var feature_collection = {
+      "type": "FeatureCollection",
+        "features": []
+  };
+
+  var ids = req.param('ids');
+  var layerName = req.param('layer');
+  var dbName = req.param('db');
+  var geomRow = req.param('geom');
+  var idColumn = req.param('idColumn');
+  var clipBig = req.param('clipBig');
+  var extent = req.param('extent');
+
+  var extentConverted = extent.map(function (x) {
+    return parseFloat(x, 10);
+  });
+
+  extent = extentConverted;
+
+  var extentArea = (extent[2] - extent[0]) * (extent[3] - extent[1]);
+  var queryString;
+
+  if(clipBig != "true"){
+    queryString = ' SELECT ' + idColumn + ' AS id, ST_AsGeoJSON(' + geomRow + ') AS geom, ' +
+                  "ST_XMin(geometry_9) AS minx, ST_YMin(geometry_9) AS miny, ST_XMax(geometry_9) AS maxx, ST_YMax(geometry_9) AS maxy " +
+                  'FROM ' + layerName + ' WHERE ' + idColumn + ' IN(' + ids + ')';
+  } else {
+    var envelop = "ST_MakeEnvelope(" + extent[0] + ", " + extent[1] + ", " + extent[2] + ", " + extent[3] + ", 4326)";
+   
+    var queryString = "" +  
+      "SELECT " +  "ST_Area(" + envelop + ") AS bbox, "  +
+        idColumn + " AS id, " +
+        "ST_AsGeoJSON(" + geomRow + ") AS geom, " +
+        "ST_XMin(geometry_9) AS minx, ST_YMin(geometry_9) AS miny, ST_XMax(geometry_9) AS maxx, ST_YMax(geometry_9) AS maxy, " +
+        "ST_Area(" + geomRow + ", true), " + 
+        "CASE   WHEN ST_Area(" + geomRow + " ) > " + (extentArea * 0.1) + 
+          " THEN ST_AsGeoJSON(ST_Intersection( " + envelop + ", " + geomRow + " ))" +
+          " ELSE 'null'" +
+          " END AS clipped_geom, " + 
+        "CASE   WHEN ST_Area(" + geomRow + " ) <= " + (extentArea * 0.1) + " THEN " + "ST_AsGeoJSON(" + geomRow + " ) "  +
+          " ELSE 'null' " +
+          " END AS original_geom " +
+       "FROM " + layerName + " " +
+       "WHERE " + idColumn + " IN(" + ids + ")";
+  }  
+
+
+  var connectionString = "postgres://postgres:postgres@localhost/" + dbName;
+
+  pg.connect(connectionString, function(err, client, done) {
+      var query = client.query(queryString);
+      // make feature from every row
+      query.on('row', function(row) {
+        var geom;
+        var original_geom = true;
+
+        if(clipBig != "true"){
+          geom = row.geom;
+        } else {
+          if(row.clipped_geom == 'null') {
+            geom = row.original_geom;
+          } else {
+            geom = row.clipped_geom;
+            original_geom = false;
+          }
+        }
+  
+        var jsonFeature = {
+          "type": "Feature",
+          "properties": {
+            "id": row.id,
+            "original_geom": original_geom,
+            "extent": [row.minx, row.miny, row.maxx, row.maxy]
+          },
+          "geometry":  {
+            "type": "Polygon",
+            "coordinates": []
+          }//JSON.parse(geom)
+        };
+
+        feature_collection.features.push(jsonFeature);
+      });
+
+      query.on('end', function() {
+          client.end();
+          res.json({ "FeatureCollection" : feature_collection, "ids": ids, "zoom": req.param('zoom') });
       });
 
       if(err) {

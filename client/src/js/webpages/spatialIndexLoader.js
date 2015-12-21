@@ -61,8 +61,8 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
     data: data,
     datatype: 'json',
     success: function(data){
-      this_.loaderSuccess(data, function(responseFeatures, zoom){
-        callback(responseFeatures,zoom);
+      this_.loaderSuccess(data, function(responseFeatures, zoom, decrease){
+        callback(responseFeatures, zoom, decrease);
       });
     },
     error:function(er){
@@ -83,20 +83,28 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
   var this_ = this;
   
   var idToDownload;
+  var featuresToDownload;
+  var geometriesToDownload;
+
   if(this.clipBig == true){
     idToDownload = this.selectIdToDownload( data.featuresId , data.zoom);
   } else {
-    idToDownload = this.selectNotCachedId(Object.keys(data.featuresId));
+    //idToDownload = this.selectNotCachedId(Object.keys(data.featuresId));
   }
 
+
+  //todo rozlisit jestli je uz nacten - pokud ano tak nacisty jen geometry na zaklade resolution, pokud ne tak nejdriv nacist extent a potom resolution
+
   var extent = data.extent;
-  if(idToDownload.length > 0){
+
+
+  if(idToDownload && idToDownload.features && idToDownload.features.length > 0){
     var stringIds = "";
-    for (var i = 0; i < idToDownload.length; i++) {
+    for (var i = 0; i < idToDownload.features.length; i++) {
       if(i == 0){
-        stringIds += " '" + idToDownload[i] + "'";
+        stringIds += " '" + idToDownload.features[i] + "'";
       } else {
-        stringIds += ", '" + idToDownload[i] + "'";
+        stringIds += ", '" + idToDownload.features[i] + "'";
       }
     }
     
@@ -116,8 +124,45 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
       },
       datatype: 'json',
       success: function(data, status, xhr){
+
+        for (var i = 0; i < idToDownload.geometries.length; i++) {
+          stringIds += ", '" + idToDownload.geometries[i] + "'";
+        }
+
         this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
-        callback(data.FeatureCollection.features, data.zoom);
+        
+        //console.log(this_ );
+        $.ajax({
+          url: this_.url + "getGeometry",
+          type: "get",
+          data:  {
+            "layer": this_.layerName,
+            "db": this_.dbname,
+            "geom": this_.geomRow,
+            "idColumn": this_.idColumn,
+            "zoom": data.zoom,
+            "requestType": "getGeometry",
+            "ids": stringIds,
+            "clipBig": this_.clipBig,
+            "extent": extent
+          },
+          datatype: 'json',
+          success: function(data, status, xhr){
+            //console.log("ziskano: ", data.FeatureCollection.features.length, " pozadovano:", idToDownload.features.length + idToDownload.geometries.length);
+
+            this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
+            callback(data.FeatureCollection.features, data.zoom, false);
+          },
+          error:function(er){
+            callback([]);
+            console.log("chyba: ", er);
+          }   
+        });
+
+        callback(data.FeatureCollection.features, data.zoom, true);
+        
+
+
       },
       error:function(er){
         callback([]);
@@ -125,8 +170,8 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
       }   
     }); 
   } else {
-    callback({});
-    console.log('no geometry for downloading');
+    callback([], 0, true);
+    //console.log('no geometry for downloading');
   }
 };
 
@@ -144,48 +189,83 @@ spatialIndexLoader.prototype.selectIdToDownload = function(ids, zoom){
     return false;
   }
   
-  var toCache = [];
-  var idToDownload = [];
-  var bigFeaturesId = [];
+  var idsNotInCache = this.selectNotCachedId(keys, zoom);
 
-  //detect if geometry will be clipped by extent 
   for (var i = 0; i < keys.length; i++) {
-    if(ids[keys[i]]){
-      bigFeaturesId.push(keys[i]);
-    //or if original geom will be sended 
-    } else {
-      toCache.push(keys[i]);
+    if(keys[i] == '116'){
+      //console.log('select 116: ', 116);
     }
+
+    if(ids[keys[i]]){
+      if(idsNotInCache.features.indexOf(ids[keys[i]]) == -1){
+        idsNotInCache.features.push(ids[keys[i]]);
+      }
+    } 
+
   };
 
-  var idsNotInCache = this.selectNotCachedId(toCache, zoom);
-  idToDownload = bigFeaturesId.concat(idsNotInCache);
-  return idToDownload;
+  if(!idsNotInCache.features){
+    //console.log('proc');
+  }
+
+  if(idsNotInCache.geometries.length > 0 ){
+    //console.log("uz fici");
+  }
+
+  return idsNotInCache;
 };
 
 
 /**
+ * NEW VERSION: should return ids for downloading feature with extent and then geometry and return also ids for downloading only geometry
  * [selectNotCachedId description]
  * @param  {[type]} ids  - feature identificators 
  * @param  {[type]} zoom [description] - not mandatory - only if you want caching for zooms????? not finished...
  * @return {[type]} ids not cached
  */
 spatialIndexLoader.prototype.selectNotCachedId = function(ids, zoom) {
-  var notCached = [];
+  var downloadFeature = [];
+  var downloadGeom = []
+  
   for (var i = 0; i < ids.length; i++) {
+    if(ids[i] == 116 || ids[i] == '116'){
+      //console.log('se116');
+    }
+
+    var findOnZoom = false;
+    var findOnAnotherZoom = false;
+
     if(zoom){
       if(!this.cacheIdByZoom[zoom]){
         this.cacheIdByZoom[zoom] = [];
       }
 
-      if (this.cacheIdByZoom[zoom].indexOf(ids[i]) == -1){
+      if (this.cacheIdByZoom[zoom].indexOf(ids[i]) != -1){
+        findOnZoom = true;
+      } else {
         this.cacheIdByZoom[zoom].push(ids[i]);
-        notCached.push(ids[i]);
+        var zooms = Object.keys(this.cacheIdByZoom);
+        for (var j = 0; j < zooms.length; j++) {
+          if(zooms[j] != zoom){
+            if (this.cacheIdByZoom[zooms[j]].indexOf(ids[i]) != -1){
+              findOnAnotherZoom = true;
+              break;
+            }
+          }
+        }
       }
+
+      if(findOnAnotherZoom || findOnZoom){
+        downloadGeom.push(ids[i]);
+      } else if(!findOnAnotherZoom && !findOnZoom){
+        downloadFeature.push(ids[i]);
+      }
+
     } else if (this.idCache.indexOf(ids[i]) == -1){
       this.idCache.push(ids[i]);
-      notCached.push(ids[i]);
+      downloadFeature.push(ids[i]);
     }
   };
-  return notCached;
+
+  return {'features': downloadFeature, 'geometries': downloadGeom};
 };
