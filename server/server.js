@@ -230,6 +230,10 @@ app.get('/se/getGeometry', function(req, res){
   var layerName = req.param('layer');
   var dbName = req.param('db');
   var geomRow = req.param('geom');
+
+  //need to pass geometry_n based on resolution
+  geomRow = 'geometry_2';
+
   var idColumn = req.param('idColumn');
   var clipBig = req.param('clipBig');
   var extent = req.param('extent');

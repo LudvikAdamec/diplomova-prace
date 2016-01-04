@@ -176,6 +176,13 @@ goog.require('ol.Overlay');
 
     var loader = new spatialIndexLoader(loaderParams);
 
+
+    console.log(loader.getLODIdForResolution(4));
+    console.log(loader.getLODIdForResolution(8));
+    console.log(loader.getLODIdForResolution(16));
+    console.log(loader.getLODIdForResolution(32));
+    console.log(loader.getLODIdForResolution(64));
+
     /**
      * count of currently loading extents (after getting response is count decreased)
      * @type {Number}
@@ -192,10 +199,6 @@ goog.require('ol.Overlay');
       loadingStatusChange({"statusMessage": 'loading <i class="fa fa-spinner fa-spin"></i>'});
       
       var callback = function(responseFeatures, zoom, decrease){
-        //console.log('callback', decrease, " zbyva ",  loadingExtents);
-        if(decrease == undefined){
-          //console.log('und');
-        }
 
         if(decrease){
           loadingExtents--;
@@ -214,44 +217,22 @@ goog.require('ol.Overlay');
             if(responseObject.mergingFinished){
               loadingStatusChange({"statusMessage": '<i class="fa fa-check"></i>'});
             } else {
-                if(responseObject.feature.properties.id == 116){
-                  //console.log('nono');
-                }
                 var olFeatures = vector.getSource().getFeatures();
                 var olFeature = goog.array.find(olFeatures, function(f) {
                   return f.get('id') === responseObject.feature.properties.id;
                 });
-                // TODO:             goog.asserts.assert(!!olFeature);
-                //
-                //
-                //
+                goog.asserts.assert(!!olFeature);
                 if(olFeature){
                   var olFeatureee =  geojsonFormat.readFeature(responseObject.feature);
-                  //console.log("geojsonFormat", geojsonFormat);
-                  //console.log("olFeatureee", olFeatureee);
-                  //console.log(olFeatureee);
-                  //vector.getSource().addFeature(olFeatureee);
-
-                  //console.log(vectorSource.zooms[zoom]);
-
-                  vectorSource.zooms[zoom].push(olFeatureee);
-                  //geojsonFeatureToLayer(responseObject.feature, vector, zoom);
-                  olFeature.setGeometry(olFeatureee.getGeometry()); // responseObject.geometry.geometry);
-                  console.log('responseObject.geometry', responseObject.geometry);
-                  //olFeature.setGeometry(responseObject.geometry);
+                  olFeature.setGeometry(responseObject.geometry);
                 }
             }
           };
 
-          //add only feature without geometry
           if(decrease){
             geojsonFeatureToLayer(responseFeatures[j], vector, zoom);
 
           } else {
-            if(responseFeatures[j].properties.id == 116){
-              //console.log('nono');
-            }
-
             if(responseFeatures[j].properties.original_geom){
               var olFeatures = vector.getSource().getFeatures();
               var olFeature = goog.array.find(olFeatures, function(f) {
@@ -264,15 +245,10 @@ goog.require('ol.Overlay');
                 olFeature.setGeometry(newGeometry);
               }
 
-
-              ///geojsonFeatureToLayer(responseFeatures[j], vector, zoom);
-
-            //change feature geometry
             } else {
               mergeTool.addFeaturesOnZoom(responseFeatures[j], zoom);
               if(loadingExtents == 0 && mergeTool.featuresToMergeOnZoom[zoom].length){
                 loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
-                //mergeCallback will be called multiple times (for every geometry and after merging finished one more)
                 mergeTool.merge(mergeCallback, zoom);
                 vectorSource.changed();
               }

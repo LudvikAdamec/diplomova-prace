@@ -114,11 +114,7 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callbac
   }
 
 
-  var mergeTwoFeatures = function(f1, f2) {
-    if(f1.properties.id == 116){
-      console.log(f1.properties.id);
-    }
-    
+  var mergeTwoFeatures = function(f1, f2) {    
     var features = featureToFeatures(f1);
     goog.array.extend(features, featureToFeatures(f2));
     goog.array.forEach(features, function(f) {
@@ -169,10 +165,11 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callbac
             "updateExisting": true
           });
         } else {
+          var newGeom = this_.featureFormat.readGeometry(ftm.geometry, {featureProjection: 'EPSG:3857'});
           features.push(ftm);
           callback({
             "feature": ftm,
-            "geometry": ftm,
+            "geometry": newGeom,
             "updateExisting": false
           });
         }

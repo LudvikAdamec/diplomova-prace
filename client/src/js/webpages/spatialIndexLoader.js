@@ -92,9 +92,6 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
     //idToDownload = this.selectNotCachedId(Object.keys(data.featuresId));
   }
 
-
-  //todo rozlisit jestli je uz nacten - pokud ano tak nacisty jen geometry na zaklade resolution, pokud ne tak nejdriv nacist extent a potom resolution
-
   var extent = data.extent;
 
 
@@ -131,7 +128,6 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
 
         this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
         
-        //console.log(this_ );
         $.ajax({
           url: this_.url + "getGeometry",
           type: "get",
@@ -148,8 +144,6 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
           },
           datatype: 'json',
           success: function(data, status, xhr){
-            //console.log("ziskano: ", data.FeatureCollection.features.length, " pozadovano:", idToDownload.features.length + idToDownload.geometries.length);
-
             this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
             callback(data.FeatureCollection.features, data.zoom, false);
           },
@@ -192,10 +186,6 @@ spatialIndexLoader.prototype.selectIdToDownload = function(ids, zoom){
   var idsNotInCache = this.selectNotCachedId(keys, zoom);
 
   for (var i = 0; i < keys.length; i++) {
-    if(keys[i] == '116'){
-      //console.log('select 116: ', 116);
-    }
-
     if(ids[keys[i]]){
       if(idsNotInCache.features.indexOf(ids[keys[i]]) == -1){
         idsNotInCache.features.push(ids[keys[i]]);
@@ -203,14 +193,6 @@ spatialIndexLoader.prototype.selectIdToDownload = function(ids, zoom){
     } 
 
   };
-
-  if(!idsNotInCache.features){
-    //console.log('proc');
-  }
-
-  if(idsNotInCache.geometries.length > 0 ){
-    //console.log("uz fici");
-  }
 
   return idsNotInCache;
 };
@@ -228,10 +210,6 @@ spatialIndexLoader.prototype.selectNotCachedId = function(ids, zoom) {
   var downloadGeom = []
   
   for (var i = 0; i < ids.length; i++) {
-    if(ids[i] == 116 || ids[i] == '116'){
-      //console.log('se116');
-    }
-
     var findOnZoom = false;
     var findOnAnotherZoom = false;
 
@@ -268,4 +246,28 @@ spatialIndexLoader.prototype.selectNotCachedId = function(ids, zoom) {
   };
 
   return {'features': downloadFeature, 'geometries': downloadGeom};
+};
+
+spatialIndexLoader.prototype.getLODIdForResolution = function(resolution){
+  var step = 4.8;
+
+  if (resolution <= step ){
+    return 9;
+  } else if(resolution <= step * 2){
+    return 8;
+  } else if(resolution <= step * 3){
+    return 7;
+  } else if(resolution <= step * 4){
+    return 6;
+  } else if(resolution <= step * 5){
+    return 5;
+  } else if(resolution <= step * 6){
+    return 4;
+  } else if(resolution <= step * 7){
+    return 3;
+  } else if(resolution <= step * 8){
+    return 2;
+  } else if(resolution <= step * 9){
+    return 1;
+  }
 };
