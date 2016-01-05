@@ -44,6 +44,7 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
 
   this.remaining++;
 
+  this.geomRow = 'geometry_' + this.getLODIdForResolution(resolution);
   var data = {
     "layer": this.layerName,
     "db": this.dbname,
@@ -253,21 +254,24 @@ spatialIndexLoader.prototype.getLODIdForResolution = function(resolution){
 
   if (resolution <= step ){
     return 9;
-  } else if(resolution <= step * 2){
+  } else if(resolution <= 9.6){
     return 8;
-  } else if(resolution <= step * 3){
+  } else if(resolution <= 19.2){
     return 7;
-  } else if(resolution <= step * 4){
+  } else if(resolution <= 38.4){
     return 6;
-  } else if(resolution <= step * 5){
+  } else if(resolution <= 76.8){
     return 5;
-  } else if(resolution <= step * 6){
+  } else if(resolution <= 153.6){
     return 4;
-  } else if(resolution <= step * 7){
+  } else if(resolution <= 307.2){
     return 3;
-  } else if(resolution <= step * 8){
+  } else if(resolution <= 614.4){
     return 2;
-  } else if(resolution <= step * 9){
+  } else if(resolution <= 1228.8){
+    return 1;
+  } else {
     return 1;
   }
+
 };

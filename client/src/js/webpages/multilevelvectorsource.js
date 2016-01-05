@@ -95,6 +95,20 @@ ol.source.MultiLevelVector = function(opt_options) {
    */
   this.loadedExtentsRtree_ = new ol.structs.RBush();
 
+  this.loadedExtentsRtrees_ = {
+    1: new ol.structs.RBush(),
+    2: new ol.structs.RBush(),
+    3: new ol.structs.RBush(),
+    4: new ol.structs.RBush(),
+    5: new ol.structs.RBush(),
+    6: new ol.structs.RBush(),
+    7: new ol.structs.RBush(),
+    8: new ol.structs.RBush(),
+    9: new ol.structs.RBush(),
+    10: new ol.structs.RBush()
+  }
+
+
   /**
    * @private
    * @type {Object.<string, ol.Feature>}
@@ -692,7 +706,7 @@ ol.source.MultiLevelVector.prototype.handleFeatureChange_ = function(event) {
   } else {
     //todo: nenacita nic do mapy
     var extent = geometry.getExtent();
-    //extent = feature.get('extent');
+    extent = feature.get('extent');
     if (featureKey in this.nullGeometryFeatures_) {
       delete this.nullGeometryFeatures_[featureKey];
       if (!goog.isNull(this.featuresRtree_)) {
@@ -752,7 +766,38 @@ ol.source.MultiLevelVector.prototype.isEmpty = function() {
  */
 ol.source.MultiLevelVector.prototype.loadFeatures = function(
     extent, resolution, projection) {
-  var loadedExtentsRtree = this.loadedExtentsRtree_;
+  
+  function getIndexOfRtree(resolution){
+    var step = 4.8;
+
+    if (resolution <= step ){
+      return 9;
+    } else if(resolution <= 9.6){
+      return 8;
+    } else if(resolution <= 19.2){
+      return 7;
+    } else if(resolution <= 38.4){
+      return 6;
+    } else if(resolution <= 76.8){
+      return 5;
+    } else if(resolution <= 153.6){
+      return 4;
+    } else if(resolution <= 307.2){
+      return 3;
+    } else if(resolution <= 614.4){
+      return 2;
+    } else if(resolution <= 1228.8){
+      return 1;
+    } else {
+      return 1;
+    }
+  }
+
+  console.log("pro res: " , resolution ," je index: ", getIndexOfRtree(resolution))
+
+  var loadedExtentsRtree = this.loadedExtentsRtrees_[getIndexOfRtree(resolution)]; //this.loadedExtentsRtree_;
+  //loadedExtentsRtree = this.loadedExtentsRtree_;
+
   var extentsToLoad = this.strategy_(extent, resolution);
   var i, ii;
   for (i = 0, ii = extentsToLoad.length; i < ii; ++i) {
