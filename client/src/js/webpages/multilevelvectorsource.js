@@ -178,11 +178,14 @@ ol.source.MultiLevelVector.prototype.addFeatureInternal = function(feature) {
   var geometry = feature.getGeometry();
   if (goog.isDefAndNotNull(geometry)) {
     var extent = geometry.getExtent();
+    //extent = feature.get('extent');
     if (!goog.isNull(this.featuresRtree_)) {
       this.featuresRtree_.insert(extent, feature);
     }
   } else {
-    this.nullGeometryFeatures_[featureKey] = feature;
+    var extent = feature.get('extent');
+    this.featuresRtree_.insert(extent, feature);
+    //this.nullGeometryFeatures_[featureKey] = feature;
   }
 
   this.dispatchEvent(
@@ -244,6 +247,9 @@ ol.source.MultiLevelVector.prototype.addFeatures = function(features) {
   this.changed();
 };
 
+
+
+//TODO: upravit aby to bralo extent z atributu
 
 /**
  * Add features without firing a `change` event.
@@ -684,7 +690,9 @@ ol.source.MultiLevelVector.prototype.handleFeatureChange_ = function(event) {
       this.nullGeometryFeatures_[featureKey] = feature;
     }
   } else {
+    //todo: nenacita nic do mapy
     var extent = geometry.getExtent();
+    //extent = feature.get('extent');
     if (featureKey in this.nullGeometryFeatures_) {
       delete this.nullGeometryFeatures_[featureKey];
       if (!goog.isNull(this.featuresRtree_)) {

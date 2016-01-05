@@ -98,7 +98,7 @@ goog.require('ol.Overlay');
     /**
      *  overriding function for ol.source.MultiLevelVector - for saving ol.features to independent zooms
      */
-    ol.source.MultiLevelVector.prototype.forEachFeatureInExtentAtResolution = function(extent, resolution, f, opt_this) {
+    /*ol.source.MultiLevelVector.prototype.forEachFeatureInExtentAtResolution = function(extent, resolution, f, opt_this) {
       if(this.zooms[map.getView().getZoom()] == undefined){
         return [];
       }
@@ -118,12 +118,12 @@ goog.require('ol.Overlay');
         }
       }
       return undefined;
-    };
+    };*/
 
     /*
      * overriding function for ol.source.MultiLevelVector - get features for all loaded zooms
      */
-    ol.source.MultiLevelVector.prototype.getFeatures = function() {
+    /*ol.source.MultiLevelVector.prototype.getFeatures = function() {
       var zooms = this.zooms;
       var features = [];
       var key;
@@ -131,7 +131,7 @@ goog.require('ol.Overlay');
         goog.array.extend(features, zooms[key]);
       }
       return features;
-    };
+    };*/
 
 
     /**
@@ -143,13 +143,16 @@ goog.require('ol.Overlay');
      */
     var geojsonFeatureToLayer = function(feature, layer, zoom ) {
       var olFeature =  geojsonFormat.readFeature(feature, {featureProjection: 'EPSG:3857'});
-      goog.asserts.assert(!!olFeature.get('id'));
+      //goog.asserts.assert(!!olFeature.get('id'));
 
-      if(vectorSource.zooms[zoom]){
+      olFeature.setGeometry(undefined);
+      vectorSource.addFeature(olFeature);
+
+      /*if(vectorSource.zooms[zoom]){
         vectorSource.zooms[zoom].push(olFeature);
       } else {
         vectorSource.zooms[zoom] = [olFeature];
-      }
+      }*/
     };
 
     /**
@@ -235,6 +238,7 @@ goog.require('ol.Overlay');
           } else {
             if(responseFeatures[j].properties.original_geom){
               var olFeatures = vector.getSource().getFeatures();
+              
               var olFeature = goog.array.find(olFeatures, function(f) {
                 return f.get('id') === responseFeatures[j].properties.id;
               });
