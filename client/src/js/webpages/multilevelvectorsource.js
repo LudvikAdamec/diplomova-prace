@@ -56,7 +56,17 @@ ol.source.MultiLevelVector = function(opt_options) {
   //nastaveni view
   this.view = options.view;
 
-  console.log("options view", this);
+  var _this = this;
+
+  function changeResolution(e){
+    var resolution = _this.view.getResolution();
+    console.log("zmena resolution: ", resolution);
+    //console.log(_this, this);
+    console.log("melo by to byt: geometry_", _this.getIndexOfRtree(resolution));
+
+  }
+
+  this.view.on('change:resolution', changeResolution); 
 
   /**
    * @private
@@ -192,7 +202,7 @@ ol.source.MultiLevelVector.prototype.addFeatureInternal = function(feature) {
   var geometry = feature.getGeometry();
   if (goog.isDefAndNotNull(geometry)) {
     var extent = geometry.getExtent();
-    //extent = feature.get('extent');
+    extent = feature.get('extent');
     if (!goog.isNull(this.featuresRtree_)) {
       this.featuresRtree_.insert(extent, feature);
     }
@@ -476,6 +486,25 @@ ol.source.MultiLevelVector.prototype.forEachFeatureAtCoordinateDirect =
 ol.source.MultiLevelVector.prototype.forEachFeatureInExtent =
     function(extent, callback, opt_this) {
   if (!goog.isNull(this.featuresRtree_)) {
+    
+    //console.log(this.getIndexOfRtree);
+    var res = this.view.getResolution();
+    var geomRow = 'geometry_' + this.getIndexOfRtree(res);
+    //console.log();
+    //var resolution = this.view.getResolution()
+    //var geom_attr = this.getIndexOfRtree(this.view.getResolution()));
+    //console.log("geom_attr: geometry_", geom_attr);
+
+    this.featuresRtree_.forEachInExtent(extent, function(feature){
+      //console.log("trolololo: ", feature);
+      var newGeom = feature.get(geomRow);
+      //console.log("newGeom: ", newGeom);
+      if(newGeom){
+        feature.setGeometry(newGeom);
+      }
+      //console.log('ma atribut: ', geomRow, " : ", feature.get(geomRow));
+    }, opt_this);
+    
     return this.featuresRtree_.forEachInExtent(extent, callback, opt_this);
   } else if (!goog.isNull(this.featuresCollection_)) {
     return this.featuresCollection_.forEach(callback, opt_this);
@@ -766,36 +795,10 @@ ol.source.MultiLevelVector.prototype.isEmpty = function() {
  */
 ol.source.MultiLevelVector.prototype.loadFeatures = function(
     extent, resolution, projection) {
-  
-  function getIndexOfRtree(resolution){
-    var step = 4.8;
 
-    if (resolution <= step ){
-      return 9;
-    } else if(resolution <= 9.6){
-      return 8;
-    } else if(resolution <= 19.2){
-      return 7;
-    } else if(resolution <= 38.4){
-      return 6;
-    } else if(resolution <= 76.8){
-      return 5;
-    } else if(resolution <= 153.6){
-      return 4;
-    } else if(resolution <= 307.2){
-      return 3;
-    } else if(resolution <= 614.4){
-      return 2;
-    } else if(resolution <= 1228.8){
-      return 1;
-    } else {
-      return 1;
-    }
-  }
+  //console.log("pro res: " , resolution ," je index: ", this.getIndexOfRtree(resolution))
 
-  console.log("pro res: " , resolution ," je index: ", getIndexOfRtree(resolution))
-
-  var loadedExtentsRtree = this.loadedExtentsRtrees_[getIndexOfRtree(resolution)]; //this.loadedExtentsRtree_;
+  var loadedExtentsRtree = this.loadedExtentsRtrees_[this.getIndexOfRtree(resolution)]; //this.loadedExtentsRtree_;
   //loadedExtentsRtree = this.loadedExtentsRtree_;
 
   var extentsToLoad = this.strategy_(extent, resolution);
@@ -882,3 +885,55 @@ ol.source.MultiLevelVector.prototype.removeFromIdIndex_ = function(feature) {
 };
 
 
+
+
+ol.source.MultiLevelVector.prototype.getIndexOfRtree = function(resolution){
+    var step = 4.8;
+
+     step = 1;
+
+    if (resolution <= step ){
+      return 9;
+    } else if(resolution <= step * 2){
+      return 8;
+    } else if(resolution <= step * 4){
+      return 7;
+    } else if(resolution <= step * 8){
+      return 6;
+    } else if(resolution <= step * 16){
+      return 5;
+    } else if(resolution <= step * 32){
+      return 4;
+    } else if(resolution <= step * 64){
+      return 3;
+    } else if(resolution <= step * 128){
+      return 2;
+    } else if(resolution <= step * 256){
+      return 1;
+    } else {
+      return 1;
+    }
+
+
+    if (resolution <= step ){
+      return 9;
+    } else if(resolution <= 9.6){
+      return 8;
+    } else if(resolution <= 19.2){
+      return 7;
+    } else if(resolution <= 38.4){
+      return 6;
+    } else if(resolution <= 76.8){
+      return 5;
+    } else if(resolution <= 153.6){
+      return 4;
+    } else if(resolution <= 307.2){
+      return 3;
+    } else if(resolution <= 614.4){
+      return 2;
+    } else if(resolution <= 1228.8){
+      return 1;
+    } else {
+      return 1;
+    }
+};

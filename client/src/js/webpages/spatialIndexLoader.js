@@ -45,6 +45,7 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
   this.remaining++;
 
   this.geomRow = 'geometry_' + this.getLODIdForResolution(resolution);
+  //console.log("changed geomRow?", this.geomRow);
   var data = {
     "layer": this.layerName,
     "db": this.dbname,
@@ -250,7 +251,29 @@ spatialIndexLoader.prototype.selectNotCachedId = function(ids, zoom) {
 };
 
 spatialIndexLoader.prototype.getLODIdForResolution = function(resolution){
-  var step = 4.8;
+  var step = 1;
+
+  if (resolution <= step ){
+    return 9;
+  } else if(resolution <= step * 2){
+    return 8;
+  } else if(resolution <= step * 4){
+    return 7;
+  } else if(resolution <= step * 8){
+    return 6;
+  } else if(resolution <= step * 16){
+    return 5;
+  } else if(resolution <= step * 32){
+    return 4;
+  } else if(resolution <= step * 64){
+    return 3;
+  } else if(resolution <= step * 128){
+    return 2;
+  } else if(resolution <= step * 256){
+    return 1;
+  } else {
+    return 1;
+  }
 
   if (resolution <= step ){
     return 9;

@@ -145,7 +145,7 @@ goog.require('ol.Overlay');
       var olFeature =  geojsonFormat.readFeature(feature, {featureProjection: 'EPSG:3857'});
       //goog.asserts.assert(!!olFeature.get('id'));
 
-      olFeature.setGeometry(undefined);
+      //olFeature.setGeometry(undefined);
       vectorSource.addFeature(olFeature);
 
       /*if(vectorSource.zooms[zoom]){
@@ -178,13 +178,6 @@ goog.require('ol.Overlay');
 
 
     var loader = new spatialIndexLoader(loaderParams);
-
-
-    console.log(loader.getLODIdForResolution(4));
-    console.log(loader.getLODIdForResolution(8));
-    console.log(loader.getLODIdForResolution(16));
-    console.log(loader.getLODIdForResolution(32));
-    console.log(loader.getLODIdForResolution(64));
 
     /**
      * count of currently loading extents (after getting response is count decreased)
@@ -227,7 +220,12 @@ goog.require('ol.Overlay');
                 goog.asserts.assert(!!olFeature);
                 if(olFeature){
                   var olFeatureee =  geojsonFormat.readFeature(responseObject.feature);
-                  olFeature.setGeometry(responseObject.geometry);
+                  
+       
+                  //olFeature.setGeometry(responseObject.geometry);
+                  //var testGe = geojsonFormat.readGeometry(responseObject.mergedGeojsonGeom); 
+
+                  olFeature.set(responseObject.feature.properties.geomRow, responseObject.geometry);
                 }
             }
           };
@@ -245,8 +243,13 @@ goog.require('ol.Overlay');
 
               if(olFeature){
                 var olFeatureee =  geojsonFormat.readFeature(responseFeatures[j], {featureProjection: 'EPSG:3857'});
+                var testGe = geojsonFormat.readGeometry(responseFeatures[j].geometry, {featureProjection: 'EPSG:3857'}); 
+
                 var newGeometry = olFeatureee.getGeometry();
-                olFeature.setGeometry(newGeometry);
+                
+                olFeature.set(responseFeatures[j].properties.geomRow, testGe);
+                vectorSource.changed();
+
               }
 
             } else {
@@ -254,6 +257,7 @@ goog.require('ol.Overlay');
               if(loadingExtents == 0 && mergeTool.featuresToMergeOnZoom[zoom].length){
                 loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
                 mergeTool.merge(mergeCallback, zoom);
+                //skutecne to ma byt tady to changed a ne v merge callback
                 vectorSource.changed();
               }
             }
@@ -289,7 +293,6 @@ goog.require('ol.Overlay');
     });
 
     map.addLayer(vector);
-
    
     map.on('click', function(evt) {
       var feature = map.forEachFeatureAtPixel(evt.pixel,
@@ -297,7 +300,7 @@ goog.require('ol.Overlay');
             return feature;
           });
       if (feature) {
-          console.log("id: ", feature.get('id'));
+          console.log("id: ", feature.get('id'), feature);
       }
     });
 

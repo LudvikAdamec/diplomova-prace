@@ -129,7 +129,7 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callbac
     return merged;
   };
 
-   var finishedCallback = function(){
+  var finishedCallback = function(){
     callback({
       "mergingFinished": true
     });
@@ -162,6 +162,7 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callbac
           callback({
             "feature" : ftm,
             "geometry": newGeom,
+            "mergedGeojsonGeom": merged,
             "updateExisting": true
           });
         } else {
@@ -170,6 +171,7 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callbac
           callback({
             "feature": ftm,
             "geometry": newGeom,
+            "mergedGeojsonGeom": ftm.geometry,
             "updateExisting": false
           });
         }

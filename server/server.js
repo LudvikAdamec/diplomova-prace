@@ -231,8 +231,9 @@ app.get('/se/getGeometry', function(req, res){
   var dbName = req.param('db');
   var geomRow = req.param('geom');
 
+
   //need to pass geometry_n based on resolution
-  geomRow = 'geometry_2';
+  //geomRow = 'geometry_2';
 
   var idColumn = req.param('idColumn');
   var clipBig = req.param('clipBig');
@@ -248,28 +249,25 @@ app.get('/se/getGeometry', function(req, res){
   var queryString;
 
   if(clipBig != "true"){
-    queryString = ' SELECT ' + idColumn + ' AS id, ST_AsGeoJSON(' + geomRow + ') AS geom, ' +
+    queryString = ' SELECT ' + idColumn + ' AS id, ST_AsGeoJSON(' + geomRow + ', 5) AS geom, ' +
                   "ST_XMin(geometry_9) AS minx, ST_YMin(geometry_9) AS miny, ST_XMax(geometry_9) AS maxx, ST_YMax(geometry_9) AS maxy " +
                   'FROM ' + layerName + ' WHERE ' + idColumn + ' IN(' + ids + ')';
   } else {
     var envelop = "ST_MakeEnvelope(" + extent[0] + ", " + extent[1] + ", " + extent[2] + ", " + extent[3] + ", 4326)";
-    var queryString = "" +  
+    queryString = "" +  
       "SELECT " +  "ST_Area(" + envelop + ") AS bbox, "  +
         idColumn + " AS id, " +
-        "ST_AsGeoJSON(" + geomRow + ") AS geom, " +
-        "ST_XMin(geometry_9) AS minx, ST_YMin(geometry_9) AS miny, ST_XMax(geometry_9) AS maxx, ST_YMax(geometry_9) AS maxy, " +
-        "ST_Area(" + geomRow + ", true), " + 
+        "ST_AsGeoJSON(" + geomRow + ", 6) AS geom, " +
         "CASE   WHEN ST_Area(" + geomRow + " ) > " + (extentArea * 0.1) + 
-          " THEN ST_AsGeoJSON(ST_Intersection( " + envelop + ", " + geomRow + " ))" +
+          " THEN ST_AsGeoJSON(ST_Intersection( " + envelop + ", " + geomRow + " ), 6)" +
           " ELSE 'null'" +
           " END AS clipped_geom, " + 
-        "CASE   WHEN ST_Area(" + geomRow + " ) <= " + (extentArea * 0.1) + " THEN " + "ST_AsGeoJSON(" + geomRow + " ) "  +
+        "CASE   WHEN ST_Area(" + geomRow + " ) <= " + (extentArea * 0.1) + " THEN " + "ST_AsGeoJSON(" + geomRow + ", 6 ) "  +
           " ELSE 'null' " +
           " END AS original_geom " +
        "FROM " + layerName + " " +
        "WHERE " + idColumn + " IN(" + ids + ")";
   }  
-
 
   var connectionString = "postgres://postgres:postgres@localhost/" + dbName;
 
@@ -290,16 +288,17 @@ app.get('/se/getGeometry', function(req, res){
             original_geom = false;
           }
         }
-  
+
         var jsonFeature = {
           "type": "Feature",
           "properties": {
             "id": row.id,
-            "original_geom": original_geom//,
-            //"geometryN": JSON.parse(geom)           
+            "original_geom": original_geom
           },
           "geometry": JSON.parse(geom)
         };
+
+        jsonFeature.properties['geomRow'] = geomRow;
 
         //console.log(jsonFeature);
 
@@ -343,7 +342,7 @@ app.get('/se/getFeaturesById', function(req, res){
   var queryString;
 
   if(clipBig != "true"){
-    queryString = ' SELECT ' + idColumn + ' AS id, ST_AsGeoJSON(' + geomRow + ') AS geom, ' +
+    queryString = ' SELECT ' + idColumn + ' AS id, ST_AsGeoJSON(' + geomRow + ', 5) AS geom, ' +
                   " ST_XMin(ST_Transform(geometry_9,3857)) AS minx, ST_YMin(ST_Transform(geometry_9, 3857)) AS miny, ST_XMax(ST_Transform(geometry_9, 3857)) AS maxx, ST_YMax(ST_Transform(geometry_9, 3857)) AS maxy " +
                   'FROM ' + layerName + ' WHERE ' + idColumn + ' IN(' + ids + ')';
   } else {
@@ -352,7 +351,7 @@ app.get('/se/getFeaturesById', function(req, res){
     var queryString = "" +  
       "SELECT " +  "ST_Area(" + envelop + ") AS bbox, "  +
         idColumn + " AS id, " +
-        "ST_AsGeoJSON(" + geomRow + ") AS geom, " +
+        "ST_AsGeoJSON(" + geomRow + ", 5) AS geom, " +
         "ST_XMin(ST_Transform(geometry_9, 3857)) AS minx, ST_YMin(ST_Transform(geometry_9, 3857)) AS miny, ST_XMax(ST_Transform(geometry_9, 3857)) AS maxx, ST_YMax(ST_Transform(geometry_9, 3857)) AS maxy, " +
         "ST_Area(" + geomRow + ", true), " + 
         "CASE   WHEN ST_Area(" + geomRow + " ) > " + (extentArea * 0.1) + 
