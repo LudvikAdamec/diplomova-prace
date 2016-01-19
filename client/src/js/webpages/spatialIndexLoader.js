@@ -21,7 +21,7 @@ spatialIndexLoader = function(params) {
 
     this.loadedContentSize = 0;
 
-    this.cacheIdByZoom = {};
+    this.cacheIdByLevel = {};
 
     this.idCache = [];
     this.clipBig = true;
@@ -33,16 +33,18 @@ spatialIndexLoader = function(params) {
  * @param  {[type]}   extent     [description]
  * @param  {[type]}   resolution [description]
  * @param  {[type]}   projection [description]
- * @param  {[type]}   zoom       [description]
+ * @param  {[type]}   level       [description]
  * @param  {Function} callback   [description]
  * @return {[type]}              [description]
  */
-spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, projection, zoom, callback) {
+spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, projection, callback) {
   var this_ = this;
   var a = ol.proj.toLonLat([extent[0], extent[1]]);
   var b = ol.proj.toLonLat([extent[2], extent[3]]);
 
   this.remaining++;
+
+  var level = this.getLODIdForResolution(resolution);
 
   this.geomRow = 'geometry_' + this.getLODIdForResolution(resolution);
   //console.log("changed geomRow?", this.geomRow);
@@ -51,7 +53,7 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
     "db": this.dbname,
     "geom": this.geomRow,
     "idColumn": this.idColumn,
-    "zoom": zoom,
+    "level": level,
     "clipBig": this.clipBig,
     "requestType": "getFeaturesIdInBbox",
     "extent": [a[0], a[1], b[0], b[1]]
@@ -63,8 +65,8 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
     data: data,
     datatype: 'json',
     success: function(data){
-      this_.loaderSuccess(data, function(responseFeatures, zoom, decrease){
-        callback(responseFeatures, zoom, decrease);
+      this_.loaderSuccess(data, function(responseFeatures, level, decrease){
+        callback(responseFeatures, level, decrease);
       });
     },
     error:function(er){
@@ -89,7 +91,7 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
   var geometriesToDownload;
 
   if(this.clipBig == true){
-    idToDownload = this.selectIdToDownload( data.featuresId , data.zoom);
+    idToDownload = this.selectIdToDownload( data.featuresId , data.level);
   } else {
     //idToDownload = this.selectNotCachedId(Object.keys(data.featuresId));
   }
@@ -115,7 +117,7 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
         "db": this.dbname,
         "geom": this.geomRow,
         "idColumn": this.idColumn,
-        "zoom": data.zoom,
+        "level": data.level,
         "requestType": "getFeaturesById",
         "ids": stringIds,
         "clipBig": this.clipBig,
@@ -138,7 +140,7 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
             "db": this_.dbname,
             "geom": this_.geomRow,
             "idColumn": this_.idColumn,
-            "zoom": data.zoom,
+            "level": data.level,
             "requestType": "getGeometry",
             "ids": stringIds,
             "clipBig": this_.clipBig,
@@ -147,7 +149,7 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
           datatype: 'json',
           success: function(data, status, xhr){
             this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
-            callback(data.FeatureCollection.features, data.zoom, false);
+            callback(data.FeatureCollection.features, data.level, false);
           },
           error:function(er){
             callback([]);
@@ -155,7 +157,8 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
           }   
         });
 
-        callback(data.FeatureCollection.features, data.zoom, true);
+        console.log("co to je za callback: ", data);
+        callback(data.FeatureCollection.features, data.level, true);
         
 
 
@@ -175,17 +178,17 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
 /**
  * select from all identificators those which will be downloaded
  * @param  {[type]} ids  - identificators
- * @param  {[type]} zoom [description]
+ * @param  {[type]} level [description]
  * @return {[type]} ids to download
  */
-spatialIndexLoader.prototype.selectIdToDownload = function(ids, zoom){
+spatialIndexLoader.prototype.selectIdToDownload = function(ids, level){
   var keys = Object.keys(ids);
   
   if(keys.length == 0){
     return false;
   }
   
-  var idsNotInCache = this.selectNotCachedId(keys, zoom);
+  var idsNotInCache = this.selectNotCachedId(keys, level);
 
   for (var i = 0; i < keys.length; i++) {
     if(ids[keys[i]]){
@@ -204,40 +207,40 @@ spatialIndexLoader.prototype.selectIdToDownload = function(ids, zoom){
  * NEW VERSION: should return ids for downloading feature with extent and then geometry and return also ids for downloading only geometry
  * [selectNotCachedId description]
  * @param  {[type]} ids  - feature identificators 
- * @param  {[type]} zoom [description] - not mandatory - only if you want caching for zooms????? not finished...
+ * @param  {[type]} level [description] - not mandatory - only if you want caching for zooms????? not finished...
  * @return {[type]} ids not cached
  */
-spatialIndexLoader.prototype.selectNotCachedId = function(ids, zoom) {
+spatialIndexLoader.prototype.selectNotCachedId = function(ids, level) {
   var downloadFeature = [];
   var downloadGeom = []
   
   for (var i = 0; i < ids.length; i++) {
-    var findOnZoom = false;
-    var findOnAnotherZoom = false;
+    var findOnLevel = false;
+    var findOnAnotherLevel = false;
 
-    if(zoom){
-      if(!this.cacheIdByZoom[zoom]){
-        this.cacheIdByZoom[zoom] = [];
+    if(level){
+      if(!this.cacheIdByLevel[level]){
+        this.cacheIdByLevel[level] = [];
       }
 
-      if (this.cacheIdByZoom[zoom].indexOf(ids[i]) != -1){
-        findOnZoom = true;
+      if (this.cacheIdByLevel[level].indexOf(ids[i]) != -1){
+        findOnLevel = true;
       } else {
-        this.cacheIdByZoom[zoom].push(ids[i]);
-        var zooms = Object.keys(this.cacheIdByZoom);
-        for (var j = 0; j < zooms.length; j++) {
-          if(zooms[j] != zoom){
-            if (this.cacheIdByZoom[zooms[j]].indexOf(ids[i]) != -1){
-              findOnAnotherZoom = true;
+        this.cacheIdByLevel[level].push(ids[i]);
+        var levels = Object.keys(this.cacheIdByLevel);
+        for (var j = 0; j < levels.length; j++) {
+          if(levels[j] != level){
+            if (this.cacheIdByLevel[levels[j]].indexOf(ids[i]) != -1){
+              findOnAnotherLevel = true;
               break;
             }
           }
         }
       }
 
-      if(findOnAnotherZoom || findOnZoom){
+      if(findOnAnotherLevel || findOnLevel){
         downloadGeom.push(ids[i]);
-      } else if(!findOnAnotherZoom && !findOnZoom){
+      } else if(!findOnAnotherLevel && !findOnLevel){
         downloadFeature.push(ids[i]);
       }
 

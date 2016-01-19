@@ -188,7 +188,7 @@ app.get('/se/getFeaturesIdInBbox', function(req, res){
 
       query.on('end', function() {
           client.end();
-          res.json({ "featuresId" : results, "extent": extent, "zoom": req.param('zoom') });
+          res.json({ "featuresId" : results, "extent": extent, "level": req.param('level') });
       });
 
       if(err) {
@@ -232,9 +232,6 @@ app.get('/se/getGeometry', function(req, res){
   var geomRow = req.param('geom');
 
 
-  //need to pass geometry_n based on resolution
-  //geomRow = 'geometry_2';
-
   var idColumn = req.param('idColumn');
   var clipBig = req.param('clipBig');
   var extent = req.param('extent');
@@ -255,14 +252,14 @@ app.get('/se/getGeometry', function(req, res){
   } else {
     var envelop = "ST_MakeEnvelope(" + extent[0] + ", " + extent[1] + ", " + extent[2] + ", " + extent[3] + ", 4326)";
     queryString = "" +  
-      "SELECT " +  "ST_Area(" + envelop + ") AS bbox, "  +
+      "SELECT " + 
         idColumn + " AS id, " +
         "ST_AsGeoJSON(" + geomRow + ", 6) AS geom, " +
-        "CASE   WHEN ST_Area(" + geomRow + " ) > " + (extentArea * 0.1) + 
+        "CASE   WHEN ST_Area(" + geomRow + " ) > " + (extentArea * 1) + 
           " THEN ST_AsGeoJSON(ST_Intersection( " + envelop + ", " + geomRow + " ), 6)" +
           " ELSE 'null'" +
           " END AS clipped_geom, " + 
-        "CASE   WHEN ST_Area(" + geomRow + " ) <= " + (extentArea * 0.1) + " THEN " + "ST_AsGeoJSON(" + geomRow + ", 6 ) "  +
+        "CASE   WHEN ST_Area(" + geomRow + " ) <= " + (extentArea * 1) + " THEN " + "ST_AsGeoJSON(" + geomRow + ", 6 ) "  +
           " ELSE 'null' " +
           " END AS original_geom " +
        "FROM " + layerName + " " +
@@ -289,6 +286,7 @@ app.get('/se/getGeometry', function(req, res){
           }
         }
 
+        //original_geom - true if is geometry not clipped / false for clipped
         var jsonFeature = {
           "type": "Feature",
           "properties": {
@@ -298,16 +296,14 @@ app.get('/se/getGeometry', function(req, res){
           "geometry": JSON.parse(geom)
         };
 
+
         jsonFeature.properties['geomRow'] = geomRow;
-
-        //console.log(jsonFeature);
-
         feature_collection.features.push(jsonFeature);
       });
 
       query.on('end', function() {
           client.end();
-          res.json({ "FeatureCollection" : feature_collection, "ids": ids, "zoom": req.param('zoom') });
+          res.json({ "FeatureCollection" : feature_collection, "ids": ids, "geomRow": geomRow ,"level": req.param('level') });
       });
 
       if(err) {
@@ -341,62 +337,26 @@ app.get('/se/getFeaturesById', function(req, res){
   var extentArea = (extent[2] - extent[0]) * (extent[3] - extent[1]);
   var queryString;
 
-  if(clipBig != "true"){
-    queryString = ' SELECT ' + idColumn + ' AS id, ST_AsGeoJSON(' + geomRow + ', 5) AS geom, ' +
-                  " ST_XMin(ST_Transform(geometry_9,3857)) AS minx, ST_YMin(ST_Transform(geometry_9, 3857)) AS miny, ST_XMax(ST_Transform(geometry_9, 3857)) AS maxx, ST_YMax(ST_Transform(geometry_9, 3857)) AS maxy " +
-                  'FROM ' + layerName + ' WHERE ' + idColumn + ' IN(' + ids + ')';
-  } else {
-    var envelop = "ST_MakeEnvelope(" + extent[0] + ", " + extent[1] + ", " + extent[2] + ", " + extent[3] + ", 4326)";
-   
-    var queryString = "" +  
-      "SELECT " +  "ST_Area(" + envelop + ") AS bbox, "  +
-        idColumn + " AS id, " +
-        "ST_AsGeoJSON(" + geomRow + ", 5) AS geom, " +
-        "ST_XMin(ST_Transform(geometry_9, 3857)) AS minx, ST_YMin(ST_Transform(geometry_9, 3857)) AS miny, ST_XMax(ST_Transform(geometry_9, 3857)) AS maxx, ST_YMax(ST_Transform(geometry_9, 3857)) AS maxy, " +
-        "ST_Area(" + geomRow + ", true), " + 
-        "CASE   WHEN ST_Area(" + geomRow + " ) > " + (extentArea * 0.1) + 
-          " THEN ST_AsGeoJSON(ST_Intersection( " + envelop + ", " + geomRow + " ))" +
-          " ELSE 'null'" +
-          " END AS clipped_geom, " + 
-        "CASE   WHEN ST_Area(" + geomRow + " ) <= " + (extentArea * 0.1) + " THEN " + "ST_AsGeoJSON(" + geomRow + " ) "  +
-          " ELSE 'null' " +
-          " END AS original_geom " +
-       "FROM " + layerName + " " +
-       "WHERE " + idColumn + " IN(" + ids + ")";
-  }  
-
+  queryString = ' SELECT ' + idColumn + ' AS id, ' +
+                " ST_XMin(ST_Transform(geometry_9,3857)) AS minx, ST_YMin(ST_Transform(geometry_9, 3857)) AS miny, ST_XMax(ST_Transform(geometry_9, 3857)) AS maxx, ST_YMax(ST_Transform(geometry_9, 3857)) AS maxy " +
+                'FROM ' + layerName + ' WHERE ' + idColumn + ' IN(' + ids + ')';
 
   var connectionString = "postgres://postgres:postgres@localhost/" + dbName;
 
   pg.connect(connectionString, function(err, client, done) {
       var query = client.query(queryString);
       // make feature from every row
-      query.on('row', function(row) {
-        var geom;
-        var original_geom = true;
-
-        if(clipBig != "true"){
-          geom = row.geom;
-        } else {
-          if(row.clipped_geom == 'null') {
-            geom = row.original_geom;
-          } else {
-            geom = row.clipped_geom;
-            original_geom = false;
-          }
-        }
-  
+      query.on('row', function(row) {  
         var jsonFeature = {
           "type": "Feature",
           "properties": {
             "id": row.id,
-            "original_geom": original_geom,
             "extent": [row.minx, row.miny, row.maxx, row.maxy]
           },
           "geometry":  {
             "type": "Polygon",
             "coordinates": []
-          }//JSON.parse(geom)
+          }
         };
 
         feature_collection.features.push(jsonFeature);
@@ -404,7 +364,7 @@ app.get('/se/getFeaturesById', function(req, res){
 
       query.on('end', function() {
           client.end();
-          res.json({ "FeatureCollection" : feature_collection, "ids": ids, "zoom": req.param('zoom') });
+          res.json({ "FeatureCollection" : feature_collection, "ids": ids, "level": req.param('level') });
       });
 
       if(err) {
@@ -413,22 +373,6 @@ app.get('/se/getFeaturesById', function(req, res){
   });
 
 });
-
-
-/*
-
-app.get('/fruit/:fruitName/:fruitColor', function(req, res) {
-    var data = {
-        "fruit": {
-            "apple": req.params.fruitName,
-            "color": req.params.fruitColor
-        }
-    }; 
-
-    send.json(data);
-});
-
- */
 
 app.use('/', express.static(__dirname+'/../'));
 app.use('/public', express.static(__dirname + '../public/'));

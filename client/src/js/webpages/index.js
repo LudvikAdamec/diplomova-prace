@@ -76,83 +76,18 @@ goog.require('ol.Overlay');
     tileSize: 256
   });
 
-
-  var level0 =  20037508.342789244 + 20037508.342789244;
-
-
   if(method == "spatialIndexing"){
 
-    var getLODIdForResolution = function(resolution){
-      // vraci id urovne podle resolution
-      return 'geometry_2';
-    };
-
-
-
     /**
-     * zooms is object behaving as cache for ol.features  - zooms later contain array for every zoom level with ol.features
-     * @type {Object}
-     */
-    ol.source.MultiLevelVector.prototype.zooms = {};
-    
-    /**
-     *  overriding function for ol.source.MultiLevelVector - for saving ol.features to independent zooms
-     */
-    /*ol.source.MultiLevelVector.prototype.forEachFeatureInExtentAtResolution = function(extent, resolution, f, opt_this) {
-      if(this.zooms[map.getView().getZoom()] == undefined){
-        return [];
-      }
-
-      var features = this.zooms[map.getView().getZoom()];
-      if(features.length){
-        var keys = Object.keys(features); 
-        if(keys.length){
-          var i = 0;
-          var ii = keys.length;
-          for (i; i < ii; ++i) {
-            var result = f.call(opt_this, features[keys[i]]);
-            if (result) {
-              return result;
-            }
-          } 
-        }
-      }
-      return undefined;
-    };*/
-
-    /*
-     * overriding function for ol.source.MultiLevelVector - get features for all loaded zooms
-     */
-    /*ol.source.MultiLevelVector.prototype.getFeatures = function() {
-      var zooms = this.zooms;
-      var features = [];
-      var key;
-      for (key in zooms) {
-        goog.array.extend(features, zooms[key]);
-      }
-      return features;
-    };*/
-
-
-    /**
-     * function add  geojson feature in zoom cache 
+     * function add  geojson feature
      * @param  {[type]} feature - geojson feature
      * @param  {[type]} layer   - target ol.layer
-     * @param  {[type]} zoom    - zoom level of feature
+     * @param  {[type]} level    - level of detail of feature
      * @return {undefined}         
      */
-    var geojsonFeatureToLayer = function(feature, layer, zoom ) {
+    var geojsonFeatureToLayer = function(feature, layer, level ) {
       var olFeature =  geojsonFormat.readFeature(feature, {featureProjection: 'EPSG:3857'});
-      //goog.asserts.assert(!!olFeature.get('id'));
-
-      //olFeature.setGeometry(undefined);
       vectorSource.addFeature(olFeature);
-
-      /*if(vectorSource.zooms[zoom]){
-        vectorSource.zooms[zoom].push(olFeature);
-      } else {
-        vectorSource.zooms[zoom] = [olFeature];
-      }*/
     };
 
     /**
@@ -194,7 +129,7 @@ goog.require('ol.Overlay');
 
       loadingStatusChange({"statusMessage": 'loading <i class="fa fa-spinner fa-spin"></i>'});
       
-      var callback = function(responseFeatures, zoom, decrease){
+      var callback = function(responseFeatures, level, decrease){
 
         if(decrease){
           loadingExtents--;
@@ -220,23 +155,16 @@ goog.require('ol.Overlay');
                 goog.asserts.assert(!!olFeature);
                 if(olFeature){
                   var olFeatureee =  geojsonFormat.readFeature(responseObject.feature);
-                  
-       
-                  //olFeature.setGeometry(responseObject.geometry);
-                  //var testGe = geojsonFormat.readGeometry(responseObject.mergedGeojsonGeom); 
-
                   olFeature.set(responseObject.feature.properties.geomRow, responseObject.geometry);
                 }
             }
           };
 
           if(decrease){
-            geojsonFeatureToLayer(responseFeatures[j], vector, zoom);
-
+            geojsonFeatureToLayer(responseFeatures[j], vector, level);
           } else {
             if(responseFeatures[j].properties.original_geom){
               var olFeatures = vector.getSource().getFeatures();
-              
               var olFeature = goog.array.find(olFeatures, function(f) {
                 return f.get('id') === responseFeatures[j].properties.id;
               });
@@ -244,21 +172,18 @@ goog.require('ol.Overlay');
               if(olFeature){
                 var olFeatureee =  geojsonFormat.readFeature(responseFeatures[j], {featureProjection: 'EPSG:3857'});
                 var testGe = geojsonFormat.readGeometry(responseFeatures[j].geometry, {featureProjection: 'EPSG:3857'}); 
-
                 var newGeometry = olFeatureee.getGeometry();
-                
                 olFeature.set(responseFeatures[j].properties.geomRow, testGe);
-                vectorSource.changed();
-
+                //vectorSource.changed();
               }
 
             } else {
-              mergeTool.addFeaturesOnZoom(responseFeatures[j], zoom);
-              if(loadingExtents == 0 && mergeTool.featuresToMergeOnZoom[zoom].length){
+              mergeTool.addFeaturesOnLevel(responseFeatures[j], level);
+              if(loadingExtents == 0 && mergeTool.featuresToMergeOnLevel[level].length){
                 loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
-                mergeTool.merge(mergeCallback, zoom);
+                mergeTool.merge(mergeCallback, level);
                 //skutecne to ma byt tady to changed a ne v merge callback
-                vectorSource.changed();
+                //vectorSource.changed();
               }
             }
 
@@ -267,8 +192,7 @@ goog.require('ol.Overlay');
         }
       };
 
-      var zoom = map.getView().getZoom();
-      loader.loaderFunction(extent,resolution, projection, zoom ,callback);
+      loader.loaderFunction(extent,resolution, projection ,callback);
       loadingExtents++;
 
     };
