@@ -31,7 +31,6 @@ goog.require('mergeTools');
 
 goog.require('ol.source.MultiLevelVector');
 
-
 goog.require('ol.Overlay');
 
 /**
@@ -66,7 +65,7 @@ goog.require('ol.Overlay');
     source: new ol.source.OSM()
   });
 
-  //map.addLayer(bg);
+  map.addLayer(bg);
 
   var geojsonFormat = new ol.format.GeoJSON({
     defaultDataProjection: 'EPSG:4326'

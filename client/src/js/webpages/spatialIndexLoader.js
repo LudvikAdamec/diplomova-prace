@@ -157,7 +157,7 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
           }   
         });
 
-        console.log("co to je za callback: ", data);
+        //console.log("co to je za callback: ", data);
         callback(data.FeatureCollection.features, data.level, true);
         
 
