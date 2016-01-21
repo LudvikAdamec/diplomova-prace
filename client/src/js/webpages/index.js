@@ -65,7 +65,7 @@ goog.require('ol.Overlay');
     source: new ol.source.OSM()
   });
 
-  map.addLayer(bg);
+  //map.addLayer(bg);
 
   var geojsonFormat = new ol.format.GeoJSON({
     defaultDataProjection: 'EPSG:4326'
@@ -103,13 +103,12 @@ goog.require('ol.Overlay');
     var loaderParams = {
       "db": {
         "layerName" : "obce", //"parcelswgs";
-        "dbname" : "vfr",
+        "dbname" : "vfr_instalace2",
         "geomColumn" : "geometry_1",
         "idColumn" : "ogc_fid",
         "url" : "http://localhost:9001/se/"
       } 
     };
-
 
     var loader = new spatialIndexLoader(loaderParams);
 
@@ -128,12 +127,28 @@ goog.require('ol.Overlay');
 
       loadingStatusChange({"statusMessage": 'loading <i class="fa fa-spinner fa-spin"></i>'});
       
-      var callback = function(responseFeatures, level, decrease){
+      var callback = function(responseFeatures, level, decrease, message){
+        var mergeCallback = function(responseObject){
+          if(responseObject.mergingFinished){
+            loadingStatusChange({"statusMessage": '<i class="fa fa-check"></i>'});
+          } else {
+              var olFeatures = vector.getSource().getFeatures();
+              var olFeature = goog.array.find(olFeatures, function(f) {
+                return f.get('id') === responseObject.feature.properties.id;
+              });
+              goog.asserts.assert(!!olFeature);
+              if(olFeature){
+                var olFeatureee =  geojsonFormat.readFeature(responseObject.feature);
+                olFeature.set(responseObject.feature.properties.geomRow, responseObject.geometry);
+              }
+          }
+        };
 
         if(decrease){
           loadingExtents--;
         }
 
+        //prenest do samostatne fce
         if(loadingExtents == 0){
           var contentSize = Math.round(loader.loadedContentSize * 100) / 100;
           loadingStatusChange({
@@ -142,23 +157,8 @@ goog.require('ol.Overlay');
           });
         }
 
-        for (var j = 0; j < responseFeatures.length; j++) {
-          var mergeCallback = function(responseObject){
-            if(responseObject.mergingFinished){
-              loadingStatusChange({"statusMessage": '<i class="fa fa-check"></i>'});
-            } else {
-                var olFeatures = vector.getSource().getFeatures();
-                var olFeature = goog.array.find(olFeatures, function(f) {
-                  return f.get('id') === responseObject.feature.properties.id;
-                });
-                goog.asserts.assert(!!olFeature);
-                if(olFeature){
-                  var olFeatureee =  geojsonFormat.readFeature(responseObject.feature);
-                  olFeature.set(responseObject.feature.properties.geomRow, responseObject.geometry);
-                }
-            }
-          };
 
+        for (var j = 0; j < responseFeatures.length; j++) {
           if(decrease){
             geojsonFeatureToLayer(responseFeatures[j], vector, level);
           } else {

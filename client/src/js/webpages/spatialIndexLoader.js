@@ -66,7 +66,7 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
     datatype: 'json',
     success: function(data){
       this_.loaderSuccess(data, function(responseFeatures, level, decrease){
-        callback(responseFeatures, level, decrease);
+        callback(responseFeatures, level, decrease, "DF_ID");
       });
     },
     error:function(er){
@@ -76,6 +76,89 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
   }); 
 
 };
+
+spatialIndexLoader.prototype.loadGeometries = function(idToDownload, level, extent, callback, this_) {
+  var stringIds = "";
+  var ids = idToDownload.features.concat(idToDownload.geometries);
+  for (var i = 0; i < ids.length; i++) {
+    if(i == 0){
+      stringIds += " '" + ids[i] + "'";
+    } else {
+      stringIds += ", '" + ids[i] + "'";
+    }
+  }
+
+
+  var this_ = this;
+  $.ajax({
+    url: this.url + "getGeometry",
+    type: "get",
+    data:  {
+      "layer": this.layerName,
+      "db": this.dbname,
+      "geom": this.geomRow,
+      "idColumn": this.idColumn,
+      "level": level,
+      "requestType": "getGeometry",
+      "ids": stringIds,
+      "clipBig": this.clipBig,
+      "extent": extent
+    },
+    datatype: 'json',
+    success: function(data, status, xhr){
+      this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
+      callback(data.FeatureCollection.features, data.level, false, "DS_G");
+    },
+    error:function(er){
+      callback([]);
+      console.log("chyba: ", er);
+    }   
+  });
+};
+
+spatialIndexLoader.prototype.loadFeatures = function(idToDownload, level, extent, callback, this_) {
+  var stringIds = "";
+  for (var i = 0; i < idToDownload.features.length; i++) {
+    if(i == 0){
+      stringIds += " '" + idToDownload.features[i] + "'";
+    } else {
+      stringIds += ", '" + idToDownload.features[i] + "'";
+    }
+  }
+
+
+  var this_ = this;
+  $.ajax({
+    url: this.url + "getFeaturesById",
+    type: "get",
+    data:  {
+      "layer": this.layerName,
+      "db": this.dbname,
+      "geom": this.geomRow,
+      "idColumn": this.idColumn,
+      "level": level,
+      "requestType": "getFeaturesById",
+      "ids": stringIds,
+      "clipBig": this.clipBig,
+      "extent": extent
+    },
+    datatype: 'json',
+    success: function(data, status, xhr){
+      this_.loadGeometries(idToDownload, data.level, extent, callback, this_);
+      this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
+
+      // prazdne [] nebo pokud obsahuje features, tak prida uplne poprve 
+      //feature vcetne atributu ale s prazdnou geometrii (nejde nacist geojson feature bez property geometry)
+      callback(data.FeatureCollection.features, data.level, true, "DS_F");      
+    },
+    error:function(er){
+      callback([]);
+      console.log("chyba: ", er);
+    }   
+  });
+
+};
+
 
 /**
  * loaderSucess is called by AJAX request from loader function. From responsed identificators select not loaded before id and make request for geometries.  
@@ -96,81 +179,13 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
     //idToDownload = this.selectNotCachedId(Object.keys(data.featuresId));
   }
 
-  var extent = data.extent;
-
-
-  if(idToDownload && idToDownload.features && idToDownload.features.length > 0){
-    var stringIds = "";
-    for (var i = 0; i < idToDownload.features.length; i++) {
-      if(i == 0){
-        stringIds += " '" + idToDownload.features[i] + "'";
-      } else {
-        stringIds += ", '" + idToDownload.features[i] + "'";
-      }
-    }
-    
-    $.ajax({
-      url: this.url + "getFeaturesById",
-      type: "get",
-      data:  {
-        "layer": this.layerName,
-        "db": this.dbname,
-        "geom": this.geomRow,
-        "idColumn": this.idColumn,
-        "level": data.level,
-        "requestType": "getFeaturesById",
-        "ids": stringIds,
-        "clipBig": this.clipBig,
-        "extent": extent
-      },
-      datatype: 'json',
-      success: function(data, status, xhr){
-
-        for (var i = 0; i < idToDownload.geometries.length; i++) {
-          stringIds += ", '" + idToDownload.geometries[i] + "'";
-        }
-
-        this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
-        
-        $.ajax({
-          url: this_.url + "getGeometry",
-          type: "get",
-          data:  {
-            "layer": this_.layerName,
-            "db": this_.dbname,
-            "geom": this_.geomRow,
-            "idColumn": this_.idColumn,
-            "level": data.level,
-            "requestType": "getGeometry",
-            "ids": stringIds,
-            "clipBig": this_.clipBig,
-            "extent": extent
-          },
-          datatype: 'json',
-          success: function(data, status, xhr){
-            this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
-            callback(data.FeatureCollection.features, data.level, false);
-          },
-          error:function(er){
-            callback([]);
-            console.log("chyba: ", er);
-          }   
-        });
-
-        //console.log("co to je za callback: ", data);
-        callback(data.FeatureCollection.features, data.level, true);
-        
-
-
-      },
-      error:function(er){
-        callback([]);
-        console.log("chyba: ", er);
-      }   
-    }); 
+  if(idToDownload && idToDownload.features.length > 0){
+    this_.loadFeatures(idToDownload, data.level, data.extent, callback, this_);
+  } else if(idToDownload && idToDownload.geometries){
+    this_.loadGeometries(idToDownload, data.level, data.extent, callback, this_);
+    callback([], 0, true, "D001");
   } else {
-    callback([], 0, true);
-    //console.log('no geometry for downloading');
+    callback([], 0, true, "D001");
   }
 };
 
@@ -192,8 +207,11 @@ spatialIndexLoader.prototype.selectIdToDownload = function(ids, level){
 
   for (var i = 0; i < keys.length; i++) {
     if(ids[keys[i]]){
-      if(idsNotInCache.features.indexOf(ids[keys[i]]) == -1){
-        idsNotInCache.features.push(ids[keys[i]]);
+      if(idsNotInCache.features.indexOf(keys[i]) == -1){
+        //console.log(idsNotInCache.features);
+        //idsNotInCache.features.push(keys[i]);
+        //idsNotInCache.features.push([keys[i]]);
+        //console.log(idsNotInCache.features);
       }
     } 
 

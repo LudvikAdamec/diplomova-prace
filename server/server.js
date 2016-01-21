@@ -145,8 +145,6 @@ app.get('/se/getFeaturesIdInBbox', function(req, res){
       idColumn = req.param('idColumn'),
       clipBig = req.param('clipBig');
 
-  //console.log("extent: ", extent);
-
   var extentConverted = extent.map(function (x) {
     return parseFloat(x, 10);
   });
@@ -170,8 +168,6 @@ app.get('/se/getFeaturesIdInBbox', function(req, res){
       ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop ;
   }
 
-  //console.log(queryString);
-
   var connectionString = "postgres://postgres:postgres@localhost/" + dbName;
   var results = {};
 
@@ -191,13 +187,13 @@ app.get('/se/getFeaturesIdInBbox', function(req, res){
           res.json({ "featuresId" : results, "extent": extent, "level": req.param('level') });
       });
 
+
       if(err) {
         console.log(err);
       }
   });
 
 });
-
 
 app.get('/se/getGeometryyyyy', function(req, res){
   /*
@@ -219,18 +215,17 @@ app.get('/se/getGeometryyyyy', function(req, res){
   
 });
 
-
 app.get('/se/getGeometry', function(req, res){
+  //console.log("getGeometry");
   var feature_collection = {
       "type": "FeatureCollection",
         "features": []
   };
-
+  
   var ids = req.param('ids');
   var layerName = req.param('layer');
   var dbName = req.param('db');
   var geomRow = req.param('geom');
-
 
   var idColumn = req.param('idColumn');
   var clipBig = req.param('clipBig');
@@ -266,55 +261,55 @@ app.get('/se/getGeometry', function(req, res){
        "WHERE " + idColumn + " IN(" + ids + ")";
   }  
 
-  var connectionString = "postgres://postgres:postgres@localhost/" + dbName;
-
+  var connectionString = "postgres://postgres:postgres@localhost/" + dbName;  
   pg.connect(connectionString, function(err, client, done) {
-      var query = client.query(queryString);
-      // make feature from every row
-      query.on('row', function(row) {
-        var geom;
-        var original_geom = true;
+    var query = client.query(queryString);
+    // make feature from every row
+    query.on('row', function(row) {        
+      var geom;
+      var original_geom = true;
 
-        if(clipBig != "true"){
-          geom = row.geom;
+      if(clipBig != "true"){
+        geom = row.geom;
+      } else {
+        if(row.clipped_geom == 'null') {
+          geom = row.original_geom;
         } else {
-          if(row.clipped_geom == 'null') {
-            geom = row.original_geom;
-          } else {
-            geom = row.clipped_geom;
-            original_geom = false;
-          }
+          geom = row.clipped_geom;
+          original_geom = false;
         }
-
-        //original_geom - true if is geometry not clipped / false for clipped
-        var jsonFeature = {
-          "type": "Feature",
-          "properties": {
-            "id": row.id,
-            "original_geom": original_geom
-          },
-          "geometry": JSON.parse(geom)
-        };
-
-
-        jsonFeature.properties['geomRow'] = geomRow;
-        feature_collection.features.push(jsonFeature);
-      });
-
-      query.on('end', function() {
-          client.end();
-          res.json({ "FeatureCollection" : feature_collection, "ids": ids, "geomRow": geomRow ,"level": req.param('level') });
-      });
-
-      if(err) {
-        console.log(err);
       }
-  });
 
+      //original_geom - true if is geometry not clipped / false for clipped
+      var jsonFeature = {
+        "type": "Feature",
+        "properties": {
+          "id": row.id,
+          "original_geom": original_geom
+        },
+        "geometry": JSON.parse(geom)
+      };
+
+
+      jsonFeature.properties['geomRow'] = geomRow;
+      feature_collection.features.push(jsonFeature);
+    });
+
+    query.on('end', function() {
+        client.end();
+        res.json({ "FeatureCollection" : feature_collection, "ids": ids, "geomRow": geomRow ,"level": req.param('level') });
+    });
+
+    if(err) {
+      console.log(err);
+    }
+  });
 });
 
 //TODO: change to return extent
 app.get('/se/getFeaturesById', function(req, res){
+  //console.log("getFeaturesById");
+
   var feature_collection = {
       "type": "FeatureCollection",
         "features": []
@@ -361,6 +356,8 @@ app.get('/se/getFeaturesById', function(req, res){
 
         feature_collection.features.push(jsonFeature);
       });
+
+      //console.log(JSON.stringify(feature_collection));
 
       query.on('end', function() {
           client.end();
