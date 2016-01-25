@@ -23,17 +23,17 @@ INSERT into spatial_ref_sys (srid, auth_name, auth_srid, proj4text, srtext) valu
 
 //Hromadne stazeni dat
 ```
-python ruianDownloader.py 
+python public/ruianDownloader.py 
 ```
 
 //Import do PG database - v python souboru je mozne na zacatku zmenit parametry pripojeni k DB
 ```
-python vfrPgImport.py 
+python public/vfrPgImport.py 
 ```
 
 //Predgeneralizovani geometrii ruianu (moznost upravit pripojeni k DB)
 ```
-python generalizePostgis.py 
+python public/generalizePostgis.py 
 ```
 
 7] V index.js upravit parametry pripojeni k DB
