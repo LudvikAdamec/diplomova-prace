@@ -138,7 +138,13 @@ goog.require('ol.Overlay');
               });
               goog.asserts.assert(!!olFeature);
               if(olFeature){
-                var olFeatureee =  geojsonFormat.readFeature(responseObject.feature);
+                
+                //funcionality for decreasing count of setgeometry on feature
+                var active_geom = olFeature.get('active_geom');
+                if(active_geom === responseObject.feature.properties.geomRow){
+                  olFeature.setGeometry(responseObject.geometry);
+                }
+                
                 olFeature.set(responseObject.feature.properties.geomRow, responseObject.geometry);
               }
           }

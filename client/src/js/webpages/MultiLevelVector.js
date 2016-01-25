@@ -156,6 +156,7 @@ ol.source.MultiLevelVector.prototype.addFeatureInternal = function(feature) {
     }
   } else {
     var extent = feature.get('extent');
+    feature.set('active_geom', undefined);
     this.featuresRtree_.insert(extent, feature);
   }
 
@@ -192,9 +193,14 @@ ol.source.MultiLevelVector.prototype.forEachFeatureInExtent =
     var geomRow = 'geometry_' + this.getLODforRes(res);
     this.featuresRtree_.forEachInExtent(extent, function(feature){
       var newGeom = feature.get(geomRow);
-      if(newGeom){
+      var active_geom = feature.get('active_geom');
+      
+      if(newGeom && (active_geom === undefined || active_geom !== geomRow)){
+        //funcionality for decreasing count of setgeometry on feature
         feature.setGeometry(newGeom);
+        feature.set('active_geom', geomRow);
       }
+      
     }, opt_this);
     
     return this.featuresRtree_.forEachInExtent(extent, callback, opt_this);
