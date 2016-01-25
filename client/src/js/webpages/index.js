@@ -29,6 +29,9 @@ goog.require('ol.source.OSM');
 goog.require('spatialIndexLoader');
 goog.require('mergeTools');
 
+goog.require('ol.source.MultiLevelVector');
+
+goog.require('ol.Overlay');
 
 /**
  * The main function.
@@ -36,11 +39,13 @@ goog.require('mergeTools');
  app.wp.index = function() {
 
   var method = "spatialIndexing";
-  var method = "vectorTiling";
+  //var method = "vectorTiling";
 
 
   var center = [15.2, 49.43];
-  var initZoom = 17;
+  center = [16.554, 49.246]
+  
+  var initZoom = 12;
 
   var map = new ol.Map({
     layers: [],
@@ -70,73 +75,18 @@ goog.require('mergeTools');
     tileSize: 256
   });
 
-
-  var level0 =  20037508.342789244 + 20037508.342789244;
-
-
   if(method == "spatialIndexing"){
 
     /**
-     * zooms is object behaving as cache for ol.features  - zooms later contain array for every zoom level with ol.features
-     * @type {Object}
-     */
-    ol.source.Vector.prototype.zooms = {};
-    
-    /**
-     *  overriding function for ol.source.Vector - for saving ol.features to independent zooms
-     */
-    ol.source.Vector.prototype.forEachFeatureInExtentAtResolution = function(extent, resolution, f, opt_this) {
-      if(this.zooms[map.getView().getZoom()] == undefined){
-        return [];
-      }
-
-      var features = this.zooms[map.getView().getZoom()];
-      if(features.length){
-        var keys = Object.keys(features); 
-        if(keys.length){
-          var i = 0;
-          var ii = keys.length;
-          for (i; i < ii; ++i) {
-            var result = f.call(opt_this, features[keys[i]]);
-            if (result) {
-              return result;
-            }
-          } 
-        }
-      }
-      return undefined;
-    };
-
-    /*
-     * overriding function for ol.source.Vector - get features for all loaded zooms
-     */
-    ol.source.Vector.prototype.getFeatures = function() {
-      var zooms = this.zooms;
-      var features = [];
-      var key;
-      for (key in zooms) {
-        goog.array.extend(features, zooms[key]);
-      }
-      return features;
-    };
-
-
-    /**
-     * function add  geojson feature in zoom cache 
+     * function add  geojson feature
      * @param  {[type]} feature - geojson feature
      * @param  {[type]} layer   - target ol.layer
-     * @param  {[type]} zoom    - zoom level of feature
+     * @param  {[type]} level    - level of detail of feature
      * @return {undefined}         
      */
-    var geojsonFeatureToLayer = function(feature, layer, zoom ) {
+    var geojsonFeatureToLayer = function(feature, layer, level ) {
       var olFeature =  geojsonFormat.readFeature(feature, {featureProjection: 'EPSG:3857'});
-      goog.asserts.assert(!!olFeature.get('id'));
-
-      if(vectorSource.zooms[zoom]){
-        vectorSource.zooms[zoom].push(olFeature);
-      } else {
-        vectorSource.zooms[zoom] = [olFeature];
-      }
+      vectorSource.addFeature(olFeature);
     };
 
     /**
@@ -152,14 +102,13 @@ goog.require('mergeTools');
      */
     var loaderParams = {
       "db": {
-        "layerName" : "parcelswgs", //"parcelswgs";
-        "dbname" : "vfr",
-        "geomColumn" : "geom_4326",
+        "layerName" : "obce", //"parcelswgs";
+        "dbname" : "vfr_instalace2",
+        "geomColumn" : "geometry_1",
         "idColumn" : "ogc_fid",
         "url" : "http://localhost:9001/se/"
       } 
     };
-
 
     var loader = new spatialIndexLoader(loaderParams);
 
@@ -178,8 +127,34 @@ goog.require('mergeTools');
 
       loadingStatusChange({"statusMessage": 'loading <i class="fa fa-spinner fa-spin"></i>'});
       
-      var callback = function(responseFeatures, zoom){
-        loadingExtents--;
+      var callback = function(responseFeatures, level, decrease, message){
+        var mergeCallback = function(responseObject){
+          if(responseObject.mergingFinished){
+            loadingStatusChange({"statusMessage": '<i class="fa fa-check"></i>'});
+          } else {
+              var olFeatures = vector.getSource().getFeatures();
+              var olFeature = goog.array.find(olFeatures, function(f) {
+                return f.get('id') === responseObject.feature.properties.id;
+              });
+              goog.asserts.assert(!!olFeature);
+              if(olFeature){
+                
+                //funcionality for decreasing count of setgeometry on feature
+                var active_geom = olFeature.get('active_geom');
+                if(active_geom === responseObject.feature.properties.geomRow){
+                  olFeature.setGeometry(responseObject.geometry);
+                }
+                
+                olFeature.set(responseObject.feature.properties.geomRow, responseObject.geometry);
+              }
+          }
+        };
+
+        if(decrease){
+          loadingExtents--;
+        }
+
+        //prenest do samostatne fce
         if(loadingExtents == 0){
           var contentSize = Math.round(loader.loadedContentSize * 100) / 100;
           loadingStatusChange({
@@ -188,48 +163,48 @@ goog.require('mergeTools');
           });
         }
 
-        for (var j = 0; j < responseFeatures.length; j++) {
-          //IF is geometry not clipped by BBOX of tile 
-          if(responseFeatures[j].properties.original_geom){
-            geojsonFeatureToLayer(responseFeatures[j], vector, zoom);
-          } else {
-            var mergeCallback = function(responseObject){
-              if(responseObject.mergingFinished){
-                loadingStatusChange({"statusMessage": '<i class="fa fa-check"></i>'});
-              } else {
-                if(!responseObject.updateExisting){
-                  geojsonFeatureToLayer(responseObject.geometry, vector, zoom);
-                } else {
-                  var olFeatures = vector.getSource().getFeatures();
-                  var olFeature = goog.array.find(olFeatures, function(f) {
-                    return f.get('id') === responseObject.feature.properties.id;
-                  });
-                  goog.asserts.assert(!!olFeature);
-                  olFeature.setGeometry(responseObject.geometry);
-                }
-              }
-            };
 
-            mergeTool.addFeaturesOnZoom(responseFeatures[j], zoom);
-            if(loadingExtents == 0 && mergeTool.featuresToMergeOnZoom[zoom].length){
-              loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
-              //mergeCallback will be called multiple times (for every geometry and after merging finished one more)
-              mergeTool.merge(mergeCallback, zoom);
-              vectorSource.changed();
+        for (var j = 0; j < responseFeatures.length; j++) {
+          if(decrease){
+            geojsonFeatureToLayer(responseFeatures[j], vector, level);
+          } else {
+            if(responseFeatures[j].properties.original_geom){
+              var olFeatures = vector.getSource().getFeatures();
+              var olFeature = goog.array.find(olFeatures, function(f) {
+                return f.get('id') === responseFeatures[j].properties.id;
+              });
+
+              if(olFeature){
+                var olFeatureee =  geojsonFormat.readFeature(responseFeatures[j], {featureProjection: 'EPSG:3857'});
+                var testGe = geojsonFormat.readGeometry(responseFeatures[j].geometry, {featureProjection: 'EPSG:3857'}); 
+                var newGeometry = olFeatureee.getGeometry();
+                olFeature.set(responseFeatures[j].properties.geomRow, testGe);
+              }
+
+            } else {
+              mergeTool.addFeaturesOnLevel(responseFeatures[j], level);
+              if(loadingExtents == 0 && mergeTool.featuresToMergeOnLevel[level].length){
+                loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
+                mergeTool.merge(mergeCallback, level);
+                vectorSource.changed();
+              }
             }
+
           }
+
         }
       };
 
-      var zoom = map.getView().getZoom();
-      loader.loaderFunction(extent,resolution, projection, zoom ,callback);
+      var level = ol.source.MultiLevelVector.prototype.getLODforRes(resolution);
+      loader.loaderFunction(extent, level, projection, callback);
       loadingExtents++;
 
     };
 
-    var vectorSource = new ol.source.Vector({
+    var vectorSource = new ol.source.MultiLevelVector({
       loader: loaderFunction,
-      strategy: ol.loadingstrategy.tile(tileGrid)
+      strategy: ol.loadingstrategy.tile(tileGrid),
+      view: map.getView()
     });
 
     var vector = new ol.layer.Vector({
@@ -246,6 +221,16 @@ goog.require('mergeTools');
     });
 
     map.addLayer(vector);
+   
+    map.on('click', function(evt) {
+      var feature = map.forEachFeatureAtPixel(evt.pixel,
+          function(feature, layer) {
+            return feature;
+          });
+      if (feature) {
+          console.log("id: ", feature.get('id'), feature);
+      }
+    });
 
     /**
      * create extent for loading behind current map - factor increase current map extent (0 = not increased extent)

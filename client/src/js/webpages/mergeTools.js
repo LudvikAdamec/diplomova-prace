@@ -21,13 +21,13 @@ mergeTools = function(mergeParams) {
   //use for vector tiles
   this.tilesToMerge = [];
   
-  //use for spatial indexing - when one feature for all zooms
+  //use for spatial indexing - when one feature for all levels
   this.featuresToMerge = [];
   this.allFeatures = [];
 
-  //use for spatial indexing - when one feature for every zoom level
-  this.featuresToMergeOnZoom = {};
-  this.allFeaturesOnZoom = {};
+  //use for spatial indexing - when one feature for every level
+  this.featuresToMergeOnLevel = {};
+  this.allFeaturesOnLevel = {};
   
   this.operations = new featuresOperations();
   this.featureFormat = mergeParams.featureFormat;
@@ -37,15 +37,15 @@ mergeTools.prototype.addTiles = function (tile) {
   this.tilesToMerge.push(tile);
 };
 
-mergeTools.prototype.addFeaturesOnZoom = function (feature, zoom) {
-  //if zoom not exist yet -> create zoom cache
-  if(!this.featuresToMergeOnZoom[zoom]){
-    this.featuresToMergeOnZoom[zoom] = [];
-    this.allFeaturesOnZoom[zoom] = [];
+mergeTools.prototype.addFeaturesOnLevel = function (feature, level) {
+  //if level not exist yet -> create level cache
+  if(!this.featuresToMergeOnLevel[level]){
+    this.featuresToMergeOnLevel[level] = [];
+    this.allFeaturesOnLevel[level] = [];
   }
 
   if(feature.geometry.type === "Polygon" || feature.geometry.type === "MultiPolygon"){
-    this.featuresToMergeOnZoom[zoom].push(feature);
+    this.featuresToMergeOnLevel[level].push(feature);
   }
 };
 
@@ -54,20 +54,20 @@ mergeTools.prototype.addFeaturesOnZoom = function (feature, zoom) {
  * merge function is starting point for merging by all 
  * strategies...its based on curently chached data in mergeTools
  * @param  {Function} callback - callback function - need to be called in all cases
- * @param  {[type]}   zoom     
+ * @param  {[type]}   level     
  * @return {[type]}   
  */
-mergeTools.prototype.merge = function (callback, zoom) {
-  if(!this.featuresToMergeOnZoom[zoom]){
-    this.featuresToMergeOnZoom[zoom] = [];
-    this.allFeaturesOnZoom[zoom] = [];
+mergeTools.prototype.merge = function (callback, level) {
+  if(!this.featuresToMergeOnLevel[level]){
+    this.featuresToMergeOnLevel[level] = [];
+    this.allFeaturesOnLevel[level] = [];
   }
 
   if(this.tilesToMerge.length){
     this.mergeTiles(callback);
-  } else if(this.featuresToMergeOnZoom[zoom].length) {
-    this.mergeFeatures(this.allFeaturesOnZoom[zoom], this.featuresToMergeOnZoom[zoom], callback, zoom);
-    this.featuresToMergeOnZoom[zoom] = [];
+  } else if(this.featuresToMergeOnLevel[level].length) {
+    this.mergeFeatures(this.allFeaturesOnLevel[level], this.featuresToMergeOnLevel[level], callback, level);
+    this.featuresToMergeOnLevel[level] = [];
   } else if(this.featuresToMerge.length) {
     this.mergeFeatures(this.allFeatures, this.featuresToMerge, callback);
     this.featuresToMerge = [];
@@ -98,7 +98,7 @@ mergeTools.prototype.mergeTiles = function(callback){
  * @param  {object} featuresToMerge features to merge
  * @return {[type]}      [description]
  */
-mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callback, zoom) {
+mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callback, level) {
   var this_ = this;
 
   var featureToFeatures = function(f) {
@@ -114,7 +114,7 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callbac
   }
 
 
-  var mergeTwoFeatures = function(f1, f2) {
+  var mergeTwoFeatures = function(f1, f2) {    
     var features = featureToFeatures(f1);
     goog.array.extend(features, featureToFeatures(f2));
     goog.array.forEach(features, function(f) {
@@ -129,7 +129,7 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callbac
     return merged;
   };
 
-   var finishedCallback = function(){
+  var finishedCallback = function(){
     callback({
       "mergingFinished": true
     });
@@ -162,13 +162,16 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callbac
           callback({
             "feature" : ftm,
             "geometry": newGeom,
+            "mergedGeojsonGeom": merged,
             "updateExisting": true
           });
         } else {
+          var newGeom = this_.featureFormat.readGeometry(ftm.geometry, {featureProjection: 'EPSG:3857'});
           features.push(ftm);
           callback({
             "feature": ftm,
-            "geometry": ftm,
+            "geometry": newGeom,
+            "mergedGeojsonGeom": ftm.geometry,
             "updateExisting": false
           });
         }
