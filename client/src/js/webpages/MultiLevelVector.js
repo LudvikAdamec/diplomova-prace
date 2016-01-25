@@ -189,7 +189,7 @@ ol.source.MultiLevelVector.prototype.forEachFeatureInExtent =
   if (!goog.isNull(this.featuresRtree_)) {
     
     var res = this.view.getResolution();
-    var geomRow = 'geometry_' + this.getIndexOfRtree(res);
+    var geomRow = 'geometry_' + this.getLODforRes(res);
     this.featuresRtree_.forEachInExtent(extent, function(feature){
       var newGeom = feature.get(geomRow);
       if(newGeom){
@@ -211,7 +211,7 @@ ol.source.MultiLevelVector.prototype.forEachFeatureInExtent =
 ol.source.MultiLevelVector.prototype.loadFeatures = function(
     extent, resolution, projection) {
 
-  var loadedExtentsRtree = this.loadedExtentsRtrees_[this.getIndexOfRtree(resolution)]; 
+  var loadedExtentsRtree = this.loadedExtentsRtrees_[this.getLODforRes(resolution)]; 
   var extentsToLoad = this.strategy_(extent, resolution);
   var i, ii;
   for (i = 0, ii = extentsToLoad.length; i < ii; ++i) {
@@ -303,11 +303,8 @@ ol.source.MultiLevelVector.prototype.handleFeatureChange_ = function(event) {
 
 
 
-ol.source.MultiLevelVector.prototype.getIndexOfRtree = function(resolution){
-  var step = 4.8;
-
-  step = 1;
-
+ol.source.MultiLevelVector.prototype.getLODforRes = function(resolution){
+  var step = 1;
   if (resolution <= step ){
     return 9;
   } else if(resolution <= step * 2){
@@ -330,26 +327,4 @@ ol.source.MultiLevelVector.prototype.getIndexOfRtree = function(resolution){
     return 1;
   }
 
-
-  if (resolution <= step ){
-    return 9;
-  } else if(resolution <= 9.6){
-    return 8;
-  } else if(resolution <= 19.2){
-    return 7;
-  } else if(resolution <= 38.4){
-    return 6;
-  } else if(resolution <= 76.8){
-    return 5;
-  } else if(resolution <= 153.6){
-    return 4;
-  } else if(resolution <= 307.2){
-    return 3;
-  } else if(resolution <= 614.4){
-    return 2;
-  } else if(resolution <= 1228.8){
-    return 1;
-  } else {
-    return 1;
-  }
 };

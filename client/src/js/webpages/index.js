@@ -173,7 +173,6 @@ goog.require('ol.Overlay');
                 var testGe = geojsonFormat.readGeometry(responseFeatures[j].geometry, {featureProjection: 'EPSG:3857'}); 
                 var newGeometry = olFeatureee.getGeometry();
                 olFeature.set(responseFeatures[j].properties.geomRow, testGe);
-                //vectorSource.changed();
               }
 
             } else {
@@ -181,8 +180,7 @@ goog.require('ol.Overlay');
               if(loadingExtents == 0 && mergeTool.featuresToMergeOnLevel[level].length){
                 loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
                 mergeTool.merge(mergeCallback, level);
-                //skutecne to ma byt tady to changed a ne v merge callback
-                //vectorSource.changed();
+                vectorSource.changed();
               }
             }
 
@@ -191,7 +189,8 @@ goog.require('ol.Overlay');
         }
       };
 
-      loader.loaderFunction(extent,resolution, projection ,callback);
+      var level = ol.source.MultiLevelVector.prototype.getLODforRes(resolution);
+      loader.loaderFunction(extent, level, projection, callback);
       loadingExtents++;
 
     };

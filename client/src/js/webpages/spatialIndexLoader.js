@@ -37,17 +37,16 @@ spatialIndexLoader = function(params) {
  * @param  {Function} callback   [description]
  * @return {[type]}              [description]
  */
-spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, projection, callback) {
+spatialIndexLoader.prototype.loaderFunction = function(extent, level, projection, callback) {
   var this_ = this;
   var a = ol.proj.toLonLat([extent[0], extent[1]]);
   var b = ol.proj.toLonLat([extent[2], extent[3]]);
 
   this.remaining++;
 
-  var level = this.getLODIdForResolution(resolution);
 
-  this.geomRow = 'geometry_' + this.getLODIdForResolution(resolution);
-  //console.log("changed geomRow?", this.geomRow);
+  this.geomRow = 'geometry_' + level; //this.getLODIdForResolution(resolution);
+
   var data = {
     "layer": this.layerName,
     "db": this.dbname,
@@ -139,7 +138,6 @@ spatialIndexLoader.prototype.loadFeatures = function(idToDownload, level, extent
       "level": level,
       "requestType": "getFeaturesById",
       "ids": stringIds,
-      "clipBig": this.clipBig,
       "extent": extent
     },
     datatype: 'json',
@@ -205,7 +203,7 @@ spatialIndexLoader.prototype.selectIdToDownload = function(ids, level){
   
   var idsNotInCache = this.selectNotCachedId(keys, level);
 
-  for (var i = 0; i < keys.length; i++) {
+  /*for (var i = 0; i < keys.length; i++) {
     if(ids[keys[i]]){
       if(idsNotInCache.features.indexOf(keys[i]) == -1){
         //console.log(idsNotInCache.features);
@@ -215,7 +213,7 @@ spatialIndexLoader.prototype.selectIdToDownload = function(ids, level){
       }
     } 
 
-  };
+  };*/
 
   return idsNotInCache;
 };
@@ -271,51 +269,3 @@ spatialIndexLoader.prototype.selectNotCachedId = function(ids, level) {
   return {'features': downloadFeature, 'geometries': downloadGeom};
 };
 
-spatialIndexLoader.prototype.getLODIdForResolution = function(resolution){
-  var step = 1;
-
-  if (resolution <= step ){
-    return 9;
-  } else if(resolution <= step * 2){
-    return 8;
-  } else if(resolution <= step * 4){
-    return 7;
-  } else if(resolution <= step * 8){
-    return 6;
-  } else if(resolution <= step * 16){
-    return 5;
-  } else if(resolution <= step * 32){
-    return 4;
-  } else if(resolution <= step * 64){
-    return 3;
-  } else if(resolution <= step * 128){
-    return 2;
-  } else if(resolution <= step * 256){
-    return 1;
-  } else {
-    return 1;
-  }
-
-  if (resolution <= step ){
-    return 9;
-  } else if(resolution <= 9.6){
-    return 8;
-  } else if(resolution <= 19.2){
-    return 7;
-  } else if(resolution <= 38.4){
-    return 6;
-  } else if(resolution <= 76.8){
-    return 5;
-  } else if(resolution <= 153.6){
-    return 4;
-  } else if(resolution <= 307.2){
-    return 3;
-  } else if(resolution <= 614.4){
-    return 2;
-  } else if(resolution <= 1228.8){
-    return 1;
-  } else {
-    return 1;
-  }
-
-};
