@@ -67,18 +67,7 @@ ol.source.MultiLevelVector = function(opt_options) {
    */
   this.loadedExtentsRtree_;
 
-  this.loadedExtentsRtrees_ = {
-    1: new ol.structs.RBush(),
-    2: new ol.structs.RBush(),
-    3: new ol.structs.RBush(),
-    4: new ol.structs.RBush(),
-    5: new ol.structs.RBush(),
-    6: new ol.structs.RBush(),
-    7: new ol.structs.RBush(),
-    8: new ol.structs.RBush(),
-    9: new ol.structs.RBush(),
-    10: new ol.structs.RBush()
-  }
+  this.loadedExtentsRtrees_ = {};
 
 
   /**
@@ -216,8 +205,14 @@ ol.source.MultiLevelVector.prototype.forEachFeatureInExtent =
  */
 ol.source.MultiLevelVector.prototype.loadFeatures = function(
     extent, resolution, projection) {
+  
+  var LOD = this.getLODforRes(resolution);
+  var loadedExtentsRtree = this.loadedExtentsRtrees_[LOD];
+  if(loadedExtentsRtree === undefined){
+    this.loadedExtentsRtrees_[LOD] = new ol.structs.RBush();
+    loadedExtentsRtree = this.loadedExtentsRtrees_[LOD];
+  } 
 
-  var loadedExtentsRtree = this.loadedExtentsRtrees_[this.getLODforRes(resolution)]; 
   var extentsToLoad = this.strategy_(extent, resolution);
   var i, ii;
   for (i = 0, ii = extentsToLoad.length; i < ii; ++i) {
