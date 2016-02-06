@@ -260,6 +260,95 @@ app.get('/se/getFeaturesById', function(req, res){
 
 });
 
+
+
+
+
+
+
+app.get('/se/getTiledGeomInBBOX', function(req, res){
+  var extent = req.param('extent'),
+      layerName = req.param('layer'),
+      dbName = req.param('db'),
+      geomRow = req.param('geom'),
+      idColumn = req.param('idColumn');
+
+  var extentConverted = extent.map(function (x) {
+    return parseFloat(x, 10);
+  });
+
+  var feature_collection = {
+      "type": "FeatureCollection",
+        "features": []
+  };
+
+  var envelop =  'ST_MakeEnvelope(' + extentConverted[0] + ', ' + extentConverted[1] + ', ' + extentConverted[2] + ', ' + extentConverted[3] + ', 4326)';
+
+  
+  var queryString = ' SELECT ' + idColumn + ' AS id, ' +
+                  'ST_AsGeoJSON(ST_Intersection( ' + envelop + ', ' + geomRow + ' ), 6) AS geom, ' +
+                  'FROM ' + layerName + ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop;
+
+    queryString = ' SELECT ' + idColumn + ' AS id, ' +
+                  "ST_XMin(ST_Transform(geometry_9,3857)) AS minx, ST_YMin(ST_Transform(geometry_9, 3857)) AS miny, ST_XMax(ST_Transform(geometry_9, 3857)) AS maxx, ST_YMax(ST_Transform(geometry_9, 3857)) AS maxy, " +
+
+                  'CASE WHEN ' + geomRow + ' @ ' + envelop + 
+                    ' THEN ST_AsGeoJSON(' + geomRow + ', 6)' +
+                    ' ELSE ST_AsGeoJSON(ST_Intersection( ' + envelop + ', ' + geomRow + ' ), 6) ' +
+                    ' END AS geom, ' +
+                   'CASE WHEN ' + envelop + ' @ ' + geomRow + 
+                    ' THEN 1' +
+                    ' ELSE 0' +
+                    ' END AS status ' +  
+                  'FROM ' + layerName + ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop;
+
+  console.log('xxxxxxxxxxxxxxxxxxxx');
+  var connectionString = "postgres://postgres:postgres@localhost/" + dbName;  
+  console.log(queryString);
+  console.log(connectionString);
+  
+  pg.connect(connectionString, function(err, client, done) {
+    var query = client.query(queryString);
+    // make feature from every row
+    query.on('row', function(row) {        
+      var geom;
+      geom = row.geom;
+
+      //original_geom - true if is geometry not clipped / false for clipped
+      var jsonFeature = {
+        "type": "Feature",
+        "properties": {
+          "id": row.id,
+          "status": row.status,
+          "extent": [row.minx, row.miny, row.maxx, row.maxy]
+
+        },
+        "geometry": JSON.parse(geom)
+      };
+
+      jsonFeature.properties['geomRow'] = geomRow;
+      feature_collection.features.push(jsonFeature);
+    });
+
+    query.on('end', function() {
+        client.end();
+        res.json({ "FeatureCollection" : feature_collection, "geomRow": geomRow ,"level": req.param('level') });
+    });
+
+    if(err) {
+      console.log(err);
+    }
+  });
+
+});
+
+
+
+
+
+
+
+
 app.use('/', express.static(__dirname+'/../'));
 app.use('/public', express.static(__dirname + '../public/'));
 

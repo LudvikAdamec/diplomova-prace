@@ -27,6 +27,7 @@ goog.require('ol.layer.Tile');
 goog.require('ol.source.OSM');
 
 goog.require('spatialIndexLoader');
+goog.require('vectorTileLoader');
 goog.require('mergeTools');
 
 goog.require('ol.source.MultiLevelVector');
@@ -111,6 +112,7 @@ goog.require('ol.Overlay');
     };
 
     var loader = new spatialIndexLoader(loaderParams);
+    var vtLoader = new vectorTileLoader(loaderParams); 
 
     /**
      * count of currently loading extents (after getting response is count decreased)
@@ -123,7 +125,9 @@ goog.require('ol.Overlay');
       specific loader function - take care for loading data, merging and displaying them on map
         - different behaviour for original not divided geometries and splited geometries
      */
-    var loaderFunction = function(extent, resolution, projection) {
+    
+    
+    /*var loaderFunction = function(extent, resolution, projection) {
 
       loadingStatusChange({"statusMessage": 'loading <i class="fa fa-spinner fa-spin"></i>'});
       
@@ -199,6 +203,66 @@ goog.require('ol.Overlay');
       loader.loaderFunction(extent, level, projection, callback);
       loadingExtents++;
 
+    };*/
+
+    var vtCache = [];      
+    var mergeCallback = function(responseObject){
+      if(responseObject.mergingFinished){
+        loadingStatusChange({"statusMessage": '<i class="fa fa-check"></i>'});
+      } else {
+          var olFeatures = vector.getSource().getFeatures();
+          var olFeature = goog.array.find(olFeatures, function(f) {
+            return f.get('id') === responseObject.feature.properties.id;
+          });
+          goog.asserts.assert(!!olFeature);
+          if(olFeature){
+            
+            //funcionality for decreasing count of setgeometry on feature
+            var active_geom = olFeature.get('active_geom');
+            if(active_geom === responseObject.feature.properties.geomRow){
+              olFeature.setGeometry(responseObject.geometry);
+            }
+            
+            olFeature.set(responseObject.feature.properties.geomRow, responseObject.geometry);
+          }
+      }
+    };
+
+    var loaderFunction = function(extent, resolution, projection) {
+
+      loadingStatusChange({"statusMessage": 'loading <i class="fa fa-spinner fa-spin"></i>'});
+
+      var callback = function(responseFeatures, level, decrease, message){
+         loadingExtents--;
+
+        if(loadingExtents == 0){
+          var contentSize = Math.round(loader.loadedContentSize * 100) / 100;
+          loadingStatusChange({
+            "statusMessage": 'extent loaded <i class="fa fa-check"></i>', 
+            "sizeMessage": contentSize + 'mb'
+          });
+        }
+
+        for (var j = 0; j < responseFeatures.length; j++) {
+          var id = responseFeatures[j].properties.id;
+          if(vtCache.indexOf(id) == -1){
+            vtCache.push(id);
+            geojsonFeatureToLayer(responseFeatures[j], vector, level);
+          }
+
+          mergeTool.addFeaturesOnLevel(responseFeatures[j], level);        
+        }
+
+        if(loadingExtents < 5 && mergeTool.featuresToMergeOnLevel[level].length){
+          loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
+          mergeTool.merge(mergeCallback, level);
+          vectorSource.changed();
+        }
+      };
+
+      var level = ol.source.MultiLevelVector.prototype.getLODforRes(resolution);
+      vtLoader.loaderFunction(extent, level, projection, callback);
+      loadingExtents++;
     };
 
     var vectorSource = new ol.source.MultiLevelVector({

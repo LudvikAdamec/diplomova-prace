@@ -1,0 +1,40 @@
+SI
+- optimalizace - nezrusit getFeaturesByID a pridat jeho odpoved v pripade potreby do getGeometry??
+	- snizi se pocet requestu pri ziskavani novych features
+	- neziskavat getFeaturesIdinBBOX pri prechodu z vetsiho do mensi priblizeni -> nutnost cachovat IDs pro kazdy extent
+		- 
+
+VECTOR TILING
+- predelat loaderFunction 
+	- zrusit getFeaturesIdInBBOX
+	- udelat XYZ ziskavani
+	- spis napsat novy kompletni loader
+		- nebude vubec mit zadnou cache o stazenych
+		- bude tam pouze metoda getTile (alternativa pro getGeometry)
+
+- on-demand
+	- udelat nove getGeometry
+		- bude posilat orezanou geometrii v EXTENTU
+		- pokud bude rozrezana tak musi o tom poslat s geometrii informaci (stejne jako v SI)
+- cache
+	- udelat renderovani do cache (couchDB)
+	- predelat loader function
+		- XYZ
+	- promyslet narocnost kontinualniho mergovani - odkazovani na pointery na nejblizsi cast geometrie
+
+
+- otestovat variantu jedne geometrie pro vice zoomu - otazka jak to implementovat
+
+- co porovnavat?
+	- rychlost kompletniho nacteni
+	- velikost prenesenych dat
+	- plynulost UI - jak to testovat?
+	- ziskat srovnani jak narocne je v celkovem procesu samotna fce pro spojovani geomnetrii
+	- srovnat jak se bude menit vykonost pri zmene parametru pro kritickou velikost rozrezani geometrie
+	- srovnat jak se meni vykonost pri zmene velikosti nacitene velikosti okna prohlizece (prednacitani)
+
+- da se nejak merit kolik casu se usetri pokud se neco nebude volat funkce stale dokola?
+	- metoda getLODforRes - slo by to asi ziskat jenom jednou
+	- vymyslet co nejvice parametru pro evaluaci
+
+- kouknout na morandiniho srovnani - jestli by se neco z toho nedalo vyuzit 
