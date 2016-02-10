@@ -46,7 +46,7 @@ goog.require('ol.Overlay');
   var center = [15.2, 49.43];
   center = [16.554, 49.246]
   
-  var initZoom = 13;
+  var initZoom = 10;
 
   var map = new ol.Map({
     layers: [],
@@ -152,6 +152,27 @@ goog.require('ol.Overlay');
       }
     };
 
+    var original_features_store = [];
+
+    var loadStoredFeatures = function() {
+      for (var j = 0; j < original_features_store.length; j++) {
+        var olFeatures = vector.getSource().getFeatures();
+        var olFeature = goog.array.find(olFeatures, function(f) {
+          return f.get('id') === original_features_store[j].properties.id;
+        });
+
+        if(olFeature){
+          var olFeatureee =  geojsonFormat.readFeature(original_features_store[j], {featureProjection: 'EPSG:3857'});
+          var testGe = geojsonFormat.readGeometry(original_features_store[j].geometry, {featureProjection: 'EPSG:3857'}); 
+          var newGeometry = olFeatureee.getGeometry();
+          olFeature.set(original_features_store[j].properties.geomRow, testGe);
+        }
+      };
+
+      original_features_store = [];
+      vectorSource.changed();
+    };
+
     var callback = function(responseFeatures, level, decrease, message){
         if(decrease){
           loadingExtents--;
@@ -181,28 +202,23 @@ goog.require('ol.Overlay');
           });
         }
 
+        console.log(loader.loaderFunctionCount, loader.loadGeometriesCount, loader.loadFeaturesCount);
+
         for (var j = 0; j < responseFeatures.length; j++) {
           if(decrease){
             geojsonFeatureToLayer(responseFeatures[j], vector, level);
           } else {
             if(responseFeatures[j].properties.original_geom){
-              var olFeatures = vector.getSource().getFeatures();
-              var olFeature = goog.array.find(olFeatures, function(f) {
-                return f.get('id') === responseFeatures[j].properties.id;
-              });
-
-              if(olFeature){
-                var olFeatureee =  geojsonFormat.readFeature(responseFeatures[j], {featureProjection: 'EPSG:3857'});
-                var testGe = geojsonFormat.readGeometry(responseFeatures[j].geometry, {featureProjection: 'EPSG:3857'}); 
-                var newGeometry = olFeatureee.getGeometry();
-                olFeature.set(responseFeatures[j].properties.geomRow, testGe);
+              original_features_store.push(responseFeatures[j]);
+              if(loader.loaderFunctionCount == 0 && 
+                loader.loadGeometriesCount < 7 && 
+                loader.loadFeaturesCount == 0 ){
+                loadStoredFeatures();
               }
-
             } else {
               mergeTool.addFeaturesOnLevel(responseFeatures[j], level);
-              console.log(loader.loaderFunctionCount, loader.loadGeometriesCount, loader.loadFeaturesCount);
               if(loader.loaderFunctionCount == 0 && 
-                loader.loadGeometriesCount == 0 && 
+                loader.loadGeometriesCount < 7 && 
                 loader.loadFeaturesCount == 0 && 
                 mergeTool.featuresToMergeOnLevel[level].length
               ){

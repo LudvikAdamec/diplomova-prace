@@ -48,7 +48,6 @@ app.use('/client/src/', function(req, res, next) {
   }
 });
 
-
 app.get('/se/getFeaturesIdInBbox', function(req, res){
   var extent = req.param('extent'),
       layerName = req.param('layer'),
