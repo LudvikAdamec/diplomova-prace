@@ -26,6 +26,10 @@ spatialIndexLoader = function(params) {
     this.idCache = [];
     this.clipBig = true;
     this.remaining = 0;
+
+    this.loaderFunctionCount = 0;
+    this.loadGeometriesCount = 0;
+    this.loadFeaturesCount = 0;
 }
 
 /**
@@ -38,6 +42,7 @@ spatialIndexLoader = function(params) {
  * @return {[type]}              [description]
  */
 spatialIndexLoader.prototype.loaderFunction = function(extent, level, projection, callback) {
+  this.loaderFunctionCount++;
   var this_ = this;
   var a = ol.proj.toLonLat([extent[0], extent[1]]);
   var b = ol.proj.toLonLat([extent[2], extent[3]]);
@@ -64,6 +69,7 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, level, projection
     data: data,
     datatype: 'json',
     success: function(data){
+      this_.loaderFunctionCount--;
       this_.loaderSuccess(data, function(responseFeatures, level, decrease){
         callback(responseFeatures, level, decrease, "DF_ID");
       });
@@ -77,6 +83,7 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, level, projection
 };
 
 spatialIndexLoader.prototype.loadGeometries = function(idToDownload, level, extent, callback, this_) {
+  this.loadGeometriesCount++;
   var stringIds = "";
   var ids = idToDownload.features.concat(idToDownload.geometries);
   for (var i = 0; i < ids.length; i++) {
@@ -105,6 +112,7 @@ spatialIndexLoader.prototype.loadGeometries = function(idToDownload, level, exte
     },
     datatype: 'json',
     success: function(data, status, xhr){
+      this_.loadGeometriesCount--;
       this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
       callback(data.FeatureCollection.features, data.level, false, "DS_G");
     },
@@ -116,6 +124,7 @@ spatialIndexLoader.prototype.loadGeometries = function(idToDownload, level, exte
 };
 
 spatialIndexLoader.prototype.loadFeatures = function(idToDownload, level, extent, callback, this_) {
+  this.loadFeaturesCount++;
   var stringIds = "";
   for (var i = 0; i < idToDownload.features.length; i++) {
     if(i == 0){
@@ -142,6 +151,7 @@ spatialIndexLoader.prototype.loadFeatures = function(idToDownload, level, extent
     },
     datatype: 'json',
     success: function(data, status, xhr){
+      this_.loadFeaturesCount--;
       this_.loadGeometries(idToDownload, data.level, extent, callback, this_);
       this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
 
@@ -184,7 +194,7 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
     callback([], 0, true, "D001");
   } else {
     callback([], 0, true, "D001");
-  }
+  } 
 };
 
 

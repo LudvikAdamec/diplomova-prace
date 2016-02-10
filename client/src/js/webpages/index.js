@@ -46,7 +46,7 @@ goog.require('ol.Overlay');
   var center = [15.2, 49.43];
   center = [16.554, 49.246]
   
-  var initZoom = 12;
+  var initZoom = 13;
 
   var map = new ol.Map({
     layers: [],
@@ -114,49 +114,58 @@ goog.require('ol.Overlay');
     var loader = new spatialIndexLoader(loaderParams);
     var vtLoader = new vectorTileLoader(loaderParams); 
 
+
+    var totalTime = 0;  
+    var timeStart = 0;
+    var timeFinish = 0;
+    var mergingStarted = 0;
+    var mergingFinished = 0;
+    var totalMergeTime = 0;
+
+
     /**
      * count of currently loading extents (after getting response is count decreased)
      * @type {Number}
      */
     var loadingExtents = 0;
-
-
-    /*
-      specific loader function - take care for loading data, merging and displaying them on map
-        - different behaviour for original not divided geometries and splited geometries
-     */
-    
-    
-    /*var loaderFunction = function(extent, resolution, projection) {
-
-      loadingStatusChange({"statusMessage": 'loading <i class="fa fa-spinner fa-spin"></i>'});
-      
-      var callback = function(responseFeatures, level, decrease, message){
-        var mergeCallback = function(responseObject){
-          if(responseObject.mergingFinished){
-            loadingStatusChange({"statusMessage": '<i class="fa fa-check"></i>'});
-          } else {
-              var olFeatures = vector.getSource().getFeatures();
-              var olFeature = goog.array.find(olFeatures, function(f) {
-                return f.get('id') === responseObject.feature.properties.id;
-              });
-              goog.asserts.assert(!!olFeature);
-              if(olFeature){
-                
-                //funcionality for decreasing count of setgeometry on feature
-                var active_geom = olFeature.get('active_geom');
-                if(active_geom === responseObject.feature.properties.geomRow){
-                  olFeature.setGeometry(responseObject.geometry);
-                }
-                
-                olFeature.set(responseObject.feature.properties.geomRow, responseObject.geometry);
-              }
+    var mergeCallback = function(responseObject){
+      if(responseObject.mergingFinished){
+        loadingStatusChange({"statusMessage": '<i class="fa fa-check"></i>'});
+        mergingFinished = new Date();
+        loadingStatusChange({"mergingTime": totalMergeTime});
+      } else {
+          var olFeatures = vector.getSource().getFeatures();
+          var olFeature = goog.array.find(olFeatures, function(f) {
+            return f.get('id') === responseObject.feature.properties.id;
+          });
+          goog.asserts.assert(!!olFeature);
+          if(olFeature){
+            
+            //funcionality for decreasing count of setgeometry on feature
+            var active_geom = olFeature.get('active_geom');
+            if(active_geom === responseObject.feature.properties.geomRow){
+              olFeature.setGeometry(responseObject.geometry);
+            }
+            
+            olFeature.set(responseObject.feature.properties.geomRow, responseObject.geometry);
           }
-        };
+      }
+    };
 
+    var callback = function(responseFeatures, level, decrease, message){
         if(decrease){
           loadingExtents--;
         }
+
+        if (loadingExtents == 0) {
+          timeFinish = new Date();
+
+        };
+
+        loadingStatusChange({
+          "statusExtents": loadingExtents, 
+          "loadingTime": new Date() - timeStart
+        });
 
         //prenest do samostatne fce
         if(loadingExtents == 0){
@@ -165,8 +174,12 @@ goog.require('ol.Overlay');
             "statusMessage": 'extent loaded <i class="fa fa-check"></i>', 
             "sizeMessage": contentSize + 'mb'
           });
-        }
 
+          loadingStatusChange({
+            "statusExtents": loadingExtents,
+            "loadingTime": timeFinish - timeStart
+          });
+        }
 
         for (var j = 0; j < responseFeatures.length; j++) {
           if(decrease){
@@ -187,9 +200,23 @@ goog.require('ol.Overlay');
 
             } else {
               mergeTool.addFeaturesOnLevel(responseFeatures[j], level);
-              if(loadingExtents == 0 && mergeTool.featuresToMergeOnLevel[level].length){
+              console.log(loader.loaderFunctionCount, loader.loadGeometriesCount, loader.loadFeaturesCount);
+              if(loader.loaderFunctionCount == 0 && 
+                loader.loadGeometriesCount == 0 && 
+                loader.loadFeaturesCount == 0 && 
+                mergeTool.featuresToMergeOnLevel[level].length
+              ){
+                console.log("pocet k merge:", mergeTool.featuresToMergeOnLevel[level].length);
+              //if(loadingExtents == 0 && mergeTool.featuresToMergeOnLevel[level].length){
+                console.log("merge");
                 loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
+                mergingStarted = new Date();
                 mergeTool.merge(mergeCallback, level);
+                mergingFinished = new Date();
+                totalMergeTime += mergingFinished - mergingStarted;
+                loadingStatusChange({"mergingTime": totalMergeTime});
+
+
                 vectorSource.changed();
               }
             }
@@ -199,70 +226,84 @@ goog.require('ol.Overlay');
         }
       };
 
-      var level = ol.source.MultiLevelVector.prototype.getLODforRes(resolution);
-      loader.loaderFunction(extent, level, projection, callback);
+    /*
+      specific loader function - take care for loading data, merging and displaying them on map
+        - different behaviour for original not divided geometries and splited geometries
+     */    
+    var loaderFunction = function(extent, resolution, projection) {
+      if(loadingExtents == 0){
+        timeStart = new Date();
+      }
+
       loadingExtents++;
 
-    };*/
+      loadingStatusChange({"statusMessage": 'loading <i class="fa fa-spinner fa-spin"></i>'});
+      var level = ol.source.MultiLevelVector.prototype.getLODforRes(resolution);
+      loader.loaderFunction(extent, level, projection, callback);
+    };
 
-    var vtCache = [];      
-    var mergeCallback = function(responseObject){
-      if(responseObject.mergingFinished){
-        loadingStatusChange({"statusMessage": '<i class="fa fa-check"></i>'});
-      } else {
-          var olFeatures = vector.getSource().getFeatures();
-          var olFeature = goog.array.find(olFeatures, function(f) {
-            return f.get('id') === responseObject.feature.properties.id;
-          });
-          goog.asserts.assert(!!olFeature);
-          if(olFeature){
-            
-            //funcionality for decreasing count of setgeometry on feature
-            var active_geom = olFeature.get('active_geom');
-            if(active_geom === responseObject.feature.properties.geomRow){
-              olFeature.setGeometry(responseObject.geometry);
-            }
-            
-            olFeature.set(responseObject.feature.properties.geomRow, responseObject.geometry);
-          }
+    var vtCache = [];    
+
+    var callbackVT = function(responseFeatures, level, decrease, message){
+       loadingExtents--;
+
+       if (loadingExtents == 0) {
+          timeFinish = new Date();
+
+       };
+
+      loadingStatusChange({
+        "statusExtents": loadingExtents, 
+        "loadingTime": new Date() - timeStart
+      });
+
+      if(loadingExtents == 0){
+        var contentSize = Math.round(vtLoader.loadedContentSize * 100) / 100;
+        console.log("contentSize:", contentSize);
+        loadingStatusChange({
+          "statusMessage": 'Doba nacteni vsech dlazdic: ' + timeFinish - timeStart + ' s - ' + 'extent loaded <i class="fa fa-check"></i>', 
+          "sizeMessage": contentSize + 'mb'
+        });
+
+        loadingStatusChange({
+          "statusExtents": loadingExtents,
+          "loadingTime": timeFinish - timeStart
+        });
+
+      }
+
+      for (var j = 0; j < responseFeatures.length; j++) {
+        var id = responseFeatures[j].properties.id;
+        if(vtCache.indexOf(id) == -1){
+          vtCache.push(id);
+          geojsonFeatureToLayer(responseFeatures[j], vector, level);
+        }
+
+        mergeTool.addFeaturesOnLevel(responseFeatures[j], level);        
+      }
+
+      //if(/*loadingExtents < 1 && */mergeTool.featuresToMergeOnLevel[level].length){
+        //loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
+      if(mergeTool.featuresToMergeOnLevel[level].length){
+        console.log("merge");
+        mergingStarted = new Date();
+        mergeTool.merge(mergeCallback, level);
+        mergingFinished = new Date();
+        totalMergeTime += mergingFinished - mergingStarted;
+        loadingStatusChange({"mergingTime": totalMergeTime});
+        vectorSource.changed();
       }
     };
 
-    var loaderFunction = function(extent, resolution, projection) {
+    var loaderFunctionVT = function(extent, resolution, projection) {
+      if(loadingExtents == 0){
+        timeStart = new Date();
+      }
 
       loadingStatusChange({"statusMessage": 'loading <i class="fa fa-spinner fa-spin"></i>'});
-
-      var callback = function(responseFeatures, level, decrease, message){
-         loadingExtents--;
-
-        if(loadingExtents == 0){
-          var contentSize = Math.round(loader.loadedContentSize * 100) / 100;
-          loadingStatusChange({
-            "statusMessage": 'extent loaded <i class="fa fa-check"></i>', 
-            "sizeMessage": contentSize + 'mb'
-          });
-        }
-
-        for (var j = 0; j < responseFeatures.length; j++) {
-          var id = responseFeatures[j].properties.id;
-          if(vtCache.indexOf(id) == -1){
-            vtCache.push(id);
-            geojsonFeatureToLayer(responseFeatures[j], vector, level);
-          }
-
-          mergeTool.addFeaturesOnLevel(responseFeatures[j], level);        
-        }
-
-        if(loadingExtents < 5 && mergeTool.featuresToMergeOnLevel[level].length){
-          loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
-          mergeTool.merge(mergeCallback, level);
-          vectorSource.changed();
-        }
-      };
-
       var level = ol.source.MultiLevelVector.prototype.getLODforRes(resolution);
-      vtLoader.loaderFunction(extent, level, projection, callback);
       loadingExtents++;
+      vtLoader.loaderFunction(extent, level, projection, callbackVT);
     };
 
     var vectorSource = new ol.source.MultiLevelVector({
@@ -497,7 +538,40 @@ goog.require('ol.Overlay');
       statusDiv.innerHTML = statusObject.statusMessage;
     }
 
+    if(statusObject.statusExtents !== undefined){
+      var extentsDiv = document.getElementById('extentsStatus');
+      extentsDiv.innerHTML = "";
+      extentsDiv.innerHTML = statusObject.statusExtents;
+    }
+
+    if(statusObject.loadingTime !== undefined){
+      var timeDiv = document.getElementById('loadingTime');
+      timeDiv.innerHTML = "";
+      timeDiv.innerHTML = statusObject.loadingTime;
+    }
+
+    if(statusObject.mergingTime !== undefined){
+      var mergingTimeDiv = document.getElementById('mergingTime');
+      mergingTimeDiv.innerHTML = "";
+      mergingTimeDiv.innerHTML = statusObject.mergingTime;
+    }
   };
+
+  var resetTimers = function() {
+    timeStart = 0;
+    timeFinish = 0;
+    mergingStarted = 0;
+    mergingFinished = 0;
+
+
+    loadingStatusChange({
+      "loadingTime": 0,
+      "mergingTime": 0
+    });
+  };
+
+  document.getElementById('resetTime').addEventListener("click", resetTimers);
+
 
 };
 

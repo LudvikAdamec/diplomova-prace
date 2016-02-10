@@ -57,12 +57,13 @@ vectorTileLoader.prototype.loaderFunction = function(extent, level, projection, 
     type: "get",
     data: data,
     datatype: 'json',
-    success: function(data){
-      this.remaining--;
-      //console.log(data);
-      callback(data.FeatureCollection.features, data.level, true, "DF_ID");
+    success: function(data, status, xhr){
+      this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
+      this_.remaining--;
+      callback(data.FeatureCollection.features, data.level, 'first', "DF_ID");
     },
     error:function(er){
+      console.log("xxxxx");
       callback([]);
       return console.log("chyba: ", er);
     }   

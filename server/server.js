@@ -69,7 +69,7 @@ app.get('/se/getFeaturesIdInBbox', function(req, res){
 
     //todo: predelat efektivne na intersects
     var queryString = ' SELECT ' + idColumn + ', ' +
-     ' CASE   WHEN ST_Area(' + geomRow + ' ) > ' + (extentArea * 0.1) + ' THEN 1 ELSE 0 END AS needclip ' +
+     ' CASE   WHEN ST_Area(' + geomRow + ' ) > ' + (extentArea * 2) + ' THEN 1 ELSE 0 END AS needclip ' +
      ' FROM ' + layerName + 
      ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop  ;
 
@@ -142,11 +142,11 @@ app.get('/se/getGeometry', function(req, res){
       "SELECT " + 
         idColumn + " AS id, " +
         "ST_AsGeoJSON(" + geomRow + ", 6) AS geom, " +
-        "CASE   WHEN ST_Area(" + geomRow + " ) > " + (extentArea * 1) + 
+        "CASE   WHEN ST_Area(" + geomRow + " ) > " + (extentArea * 2) + 
           " THEN ST_AsGeoJSON(ST_Intersection( " + envelop + ", " + geomRow + " ), 6)" +
           " ELSE 'null'" +
           " END AS clipped_geom, " + 
-        "CASE   WHEN ST_Area(" + geomRow + " ) <= " + (extentArea * 1) + " THEN " + "ST_AsGeoJSON(" + geomRow + ", 6 ) "  +
+        "CASE   WHEN ST_Area(" + geomRow + " ) <= " + (extentArea * 2) + " THEN " + "ST_AsGeoJSON(" + geomRow + ", 6 ) "  +
           " ELSE 'null' " +
           " END AS original_geom " +
        "FROM " + layerName + " " +
@@ -181,6 +181,13 @@ app.get('/se/getGeometry', function(req, res){
 
 
       jsonFeature.properties['geomRow'] = geomRow;
+
+      if(row.clipped_geom == 'null') {
+        jsonFeature.properties['original_geom'] = true;
+      } else {
+        jsonFeature.properties['original_geom'] = false;
+      }
+
       feature_collection.features.push(jsonFeature);
     });
 
@@ -260,12 +267,6 @@ app.get('/se/getFeaturesById', function(req, res){
 
 });
 
-
-
-
-
-
-
 app.get('/se/getTiledGeomInBBOX', function(req, res){
   var extent = req.param('extent'),
       layerName = req.param('layer'),
@@ -289,7 +290,7 @@ app.get('/se/getTiledGeomInBBOX', function(req, res){
                   'ST_AsGeoJSON(ST_Intersection( ' + envelop + ', ' + geomRow + ' ), 6) AS geom, ' +
                   'FROM ' + layerName + ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop;
 
-    queryString = ' SELECT ' + idColumn + ' AS id, ' +
+  queryString = ' SELECT ' + idColumn + ' AS id, ' +
                   "ST_XMin(ST_Transform(geometry_9,3857)) AS minx, ST_YMin(ST_Transform(geometry_9, 3857)) AS miny, ST_XMax(ST_Transform(geometry_9, 3857)) AS maxx, ST_YMax(ST_Transform(geometry_9, 3857)) AS maxy, " +
 
                   'CASE WHEN ' + geomRow + ' @ ' + envelop + 
@@ -302,10 +303,7 @@ app.get('/se/getTiledGeomInBBOX', function(req, res){
                     ' END AS status ' +  
                   'FROM ' + layerName + ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop;
 
-  console.log('xxxxxxxxxxxxxxxxxxxx');
   var connectionString = "postgres://postgres:postgres@localhost/" + dbName;  
-  console.log(queryString);
-  console.log(connectionString);
   
   pg.connect(connectionString, function(err, client, done) {
     var query = client.query(queryString);
