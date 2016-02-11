@@ -6,35 +6,57 @@ SI
 
 VECTOR TILING
 - predelat loaderFunction 
-	- zrusit getFeaturesIdInBBOX
 	- udelat XYZ ziskavani
-	- spis napsat novy kompletni loader
-		- nebude vubec mit zadnou cache o stazenych
-		- bude tam pouze metoda getTile (alternativa pro getGeometry)
 
-- on-demand
-	- udelat nove getGeometry
-		- bude posilat orezanou geometrii v EXTENTU
-		- pokud bude rozrezana tak musi o tom poslat s geometrii informaci (stejne jako v SI)
 - cache
 	- udelat renderovani do cache (couchDB)
 	- predelat loader function
 		- XYZ
 	- promyslet narocnost kontinualniho mergovani - odkazovani na pointery na nejblizsi cast geometrie
 
+- geojson vs topojson
 
 - otestovat variantu jedne geometrie pro vice zoomu - otazka jak to implementovat
 
 - co porovnavat?
 	- rychlost kompletniho nacteni
 	- velikost prenesenych dat
-	- plynulost UI - jak to testovat?
+	->>>> plynulost UI - jak to testovat?????
 	- ziskat srovnani jak narocne je v celkovem procesu samotna fce pro spojovani geomnetrii
 	- srovnat jak se bude menit vykonost pri zmene parametru pro kritickou velikost rozrezani geometrie
 	- srovnat jak se meni vykonost pri zmene velikosti nacitene velikosti okna prohlizece (prednacitani)
 
 - da se nejak merit kolik casu se usetri pokud se neco nebude volat funkce stale dokola?
 	- metoda getLODforRes - slo by to asi ziskat jenom jednou
-	- vymyslet co nejvice parametru pro evaluaci
 
 - kouknout na morandiniho srovnani - jestli by se neco z toho nedalo vyuzit 
+
+
+
+
+- poznamky: 
+	- spatial indexing nebo spatial index service? nebo nejak jinak?
+		- spis asi mluvit o sluzbe
+		- bude WFS = spatial index service??? zjistit
+	- melo by smysl pro ruzny zoom - mit SI a pro jiny VT
+	- kouknout na novinky VT v ol3 asi tam je neco nove pridaneho
+	- WFS musi zaznit...a nutne popsat vztah WFS a SI a VT
+	- popsat vztah toho co jsem naprogramoval s clankem GAFURRI
+	- zminit se o UTFgrid, Mapbox Vector tile format i service, Mapzen vector tile service
+	- mapbox - vector tiles ol3
+		- zjistit jestli merguji a lze ziskat geometrii nebo samotny feature
+	- neslo by nahrat data RUIAN na mapbox vector tiles
+	- co je tile.openstreetmap.us je to open source service?
+	- kouknout na podmety a revidovat text
+
+
+Nasledny postup
+- predpocitat plochu pro feature
+- zkusit udelat cache
+- zkusit implementovat topojson
+- udelat automatizovane mereni parametru s ukladanim
+- vymyslet mechanizmus vyhodnoceni plynulosti UI
+- REFACTORING
+- priprava pro vice vrstev
+- vytvoreni finalni aplikace s vice vrstvami i symbologii
+- renderovani relikt pri generalizaci - otestovat globalni algoritmus

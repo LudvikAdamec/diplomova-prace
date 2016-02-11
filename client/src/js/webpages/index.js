@@ -46,7 +46,7 @@ goog.require('ol.Overlay');
   var center = [15.2, 49.43];
   center = [16.554, 49.246]
   
-  var initZoom = 13;
+  var initZoom = 10;
 
   var map = new ol.Map({
     layers: [],
