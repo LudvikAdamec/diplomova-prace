@@ -46,7 +46,7 @@ goog.require('ol.Overlay');
   var center = [15.2, 49.43];
   center = [16.554, 49.246]
   
-  var initZoom = 10;
+  var initZoom = 13;
 
   var map = new ol.Map({
     layers: [],
@@ -273,6 +273,11 @@ goog.require('ol.Overlay');
         "loadingTime": new Date() - timeStart
       });
 
+      var contentSize = Math.round(vtLoader.loadedContentSize * 100) / 100;
+        loadingStatusChange({
+          "sizeMessage": contentSize + 'mb'
+        });
+
       if(loadingExtents == 0){
         var contentSize = Math.round(vtLoader.loadedContentSize * 100) / 100;
         console.log("contentSize:", contentSize);
@@ -323,7 +328,7 @@ goog.require('ol.Overlay');
     };
 
     var vectorSource = new ol.source.MultiLevelVector({
-      loader: loaderFunction,
+      loader: loaderFunctionVT,
       strategy: ol.loadingstrategy.tile(tileGrid),
       view: map.getView()
     });
