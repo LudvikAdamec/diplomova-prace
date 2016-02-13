@@ -1,3 +1,10 @@
+CouchDB
+- instalace
+- zalozeni db
+- naimportovani
+- npm install
+- 
+
 # DIPLOMKA 
 1) git clone
 2) npm install
