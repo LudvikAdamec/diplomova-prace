@@ -46,7 +46,7 @@ goog.require('ol.Overlay');
   var center = [15.2, 49.43];
   center = [16.554, 49.246]
   
-  var initZoom = 10;
+  var initZoom = 12;
 
   var map = new ol.Map({
     layers: [],
@@ -66,7 +66,7 @@ goog.require('ol.Overlay');
     source: new ol.source.OSM()
   });
 
-  //map.addLayer(bg);
+  map.addLayer(bg);
 
   var geojsonFormat = new ol.format.GeoJSON({
     defaultDataProjection: 'EPSG:4326'
@@ -305,7 +305,7 @@ goog.require('ol.Overlay');
 
       //if(/*loadingExtents < 1 && */mergeTool.featuresToMergeOnLevel[level].length){
         //loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
-      if(mergeTool.featuresToMergeOnLevel[level].length){
+      if(mergeTool.featuresToMergeOnLevel[level] && mergeTool.featuresToMergeOnLevel[level].length){
         console.log("merge");
         mergingStarted = new Date();
         mergeTool.merge(mergeCallback, level);
@@ -324,7 +324,7 @@ goog.require('ol.Overlay');
       loadingStatusChange({"statusMessage": 'loading <i class="fa fa-spinner fa-spin"></i>'});
       var level = ol.source.MultiLevelVector.prototype.getLODforRes(resolution);
       loadingExtents++;
-      vtLoader.loaderFunction(extent, level, projection, callbackVT);
+      vtLoader.loaderFunction(extent, level, projection, callbackVT, resolution);
     };
 
     var vectorSource = new ol.source.MultiLevelVector({

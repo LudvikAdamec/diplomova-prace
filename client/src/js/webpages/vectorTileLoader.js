@@ -21,6 +21,10 @@ vectorTileLoader = function(params) {
 
     this.loadedContentSize = 0;
     this.remaining = 0;
+    this.tileGrid = ol.tilegrid.createXYZ({
+      tileSize: 256
+    });
+
 }
 
 /**
@@ -32,7 +36,7 @@ vectorTileLoader = function(params) {
  * @param  {Function} callback   [description]
  * @return {[type]}              [description]
  */
-vectorTileLoader.prototype.loaderFunction = function(extent, level, projection, callback) {
+vectorTileLoader.prototype.loaderFunction = function(extent, level, projection, callback, resolution) {
   var this_ = this;
   var a = ol.proj.toLonLat([extent[0], extent[1]]);
   var b = ol.proj.toLonLat([extent[2], extent[3]]);
@@ -51,6 +55,40 @@ vectorTileLoader.prototype.loaderFunction = function(extent, level, projection, 
     "requestType": "getTiledGeomInBBOX",
     "extent": [a[0], a[1], b[0], b[1]]
   };
+
+  //minX, minY, maxX, maxY
+  var z = this.tileGrid.getZForResolution(resolution);
+  var x = (extent[0] + (extent[2] - extent[0]) / 2);
+  var y = (extent[1] + (extent[3] - extent[1]) / 2);
+
+  //POZOR - generuje schema XYZ podle GOOGLE XYZ schematu ne podle TMS - http://wiki.osgeo.org/wiki/Tile_Map_Service_Specification
+  var xyz = this.tileGrid.getTileCoordForXYAndResolution_(extent[0] + 10, extent[1] + 10, resolution);
+
+  var dataXYZ = {
+    'y': (xyz[2] * -1), //xyz[1],
+    'x': xyz[1],
+    'z': xyz[0]
+  }
+
+
+  //http://localhost:9001/se/renderTile?x=1118&y=1346&z=11
+
+  $.ajax({
+    url: 'http://localhost:9001/se/renderTile',
+    type: "get",
+    data: dataXYZ,
+    datatype: 'json',
+    success: function(data, status, xhr){
+
+      console.log("xyz", data);
+    },
+    error:function(er){
+      return console.log("chyba: ", er);
+    }   
+  }); 
+
+
+  //getTileCoordForCoordAndZ(coordinate, z, opt_tileCoord
 
   $.ajax({
     url: this_.url + data.requestType,
