@@ -24,6 +24,9 @@ ol.source.MultiLevelVector = function(opt_options) {
     wrapX: goog.isDef(options.wrapX) ? options.wrapX : true
   });
 
+  this.tileGrid = ol.tilegrid.createXYZ({
+    tileSize: 256
+  });
 
   //nastaveni view
   this.view = options.view;
@@ -328,4 +331,29 @@ ol.source.MultiLevelVector.prototype.getLODforRes = function(resolution){
     return 1;
   }
 
+};
+
+
+ol.source.MultiLevelVector.prototype.getLODforZ = function(z){
+  if (z > 17 ){
+    return 9;
+  } else if(z >= 17){
+    return 8;
+  } else if(z >= 16){
+    return 7;
+  } else if(z >= 15){
+    return 6;
+  } else if(z >= 14){
+    return 5;
+  } else if(z >= 13){
+    return 4;
+  } else if(z >= 12){
+    return 3;
+  } else if(z >= 11){
+    return 2;
+  } else if(z >= 10){
+    return 1;
+  } else {
+    return 1;
+  }
 };

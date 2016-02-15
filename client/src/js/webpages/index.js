@@ -260,7 +260,12 @@ goog.require('ol.Overlay');
 
     var vtCache = [];    
 
-    var callbackVT = function(responseFeatures, level, decrease, message){
+    var callbackVT = function(responseFeatures, level, decrease, message, zoom){
+      if(!level){
+        level = vectorSource.getLODforZ(zoom);
+        console.log(level);
+      }
+
        loadingExtents--;
 
        if (loadingExtents == 0) {
@@ -305,7 +310,7 @@ goog.require('ol.Overlay');
 
       //if(/*loadingExtents < 1 && */mergeTool.featuresToMergeOnLevel[level].length){
         //loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
-      if(mergeTool.featuresToMergeOnLevel[level] && mergeTool.featuresToMergeOnLevel[level].length){
+      if(loadingExtents < 1 && mergeTool.featuresToMergeOnLevel[level] && mergeTool.featuresToMergeOnLevel[level].length){
         console.log("merge");
         mergingStarted = new Date();
         mergeTool.merge(mergeCallback, level);

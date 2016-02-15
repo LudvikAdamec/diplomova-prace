@@ -65,10 +65,10 @@ vectorTileLoader.prototype.loaderFunction = function(extent, level, projection, 
   var xyz = this.tileGrid.getTileCoordForXYAndResolution_(extent[0] + 10, extent[1] + 10, resolution);
 
   var dataXYZ = {
-    'y': (xyz[2] * -1), //xyz[1],
+    'y': (xyz[2] * -1), 
     'x': xyz[1],
     'z': xyz[0]
-  }
+  };
 
 
   //http://localhost:9001/se/renderTile?x=1118&y=1346&z=11
@@ -79,8 +79,9 @@ vectorTileLoader.prototype.loaderFunction = function(extent, level, projection, 
     data: dataXYZ,
     datatype: 'json',
     success: function(data, status, xhr){
-
-      console.log("xyz", data);
+      this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
+      this_.remaining--;
+      callback(data.json.features, undefined, 'first', "DF_ID", data.xyz.z);
     },
     error:function(er){
       return console.log("chyba: ", er);
@@ -89,16 +90,16 @@ vectorTileLoader.prototype.loaderFunction = function(extent, level, projection, 
 
 
   //getTileCoordForCoordAndZ(coordinate, z, opt_tileCoord
-
+  /*
   $.ajax({
     url: this_.url + data.requestType,
     type: "get",
     data: data,
     datatype: 'json',
     success: function(data, status, xhr){
-      this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
-      this_.remaining--;
-      callback(data.FeatureCollection.features, data.level, 'first', "DF_ID");
+      //this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
+      //this_.remaining--;
+      //callback(data.FeatureCollection.features, data.level, 'first', "DF_ID");
     },
     error:function(er){
       console.log("xxxxx");
@@ -106,5 +107,5 @@ vectorTileLoader.prototype.loaderFunction = function(extent, level, projection, 
       return console.log("chyba: ", er);
     }   
   }); 
-
+  */
 };

@@ -344,11 +344,6 @@ app.get('/se/getTiledGeomInBBOX', function(req, res){
 
 
 
-
-
-
-
-
 /*************        TILECACHE          ****************/
 var getTile = function(extent, layerName, dbName, geomRow, idColumn, callback){
   //console.log("xxxxxxxxxxx - getTile");
@@ -471,16 +466,56 @@ var tileCache = (function () {
       return (Math.pow(2,zoom) - 1 ) - gy
     };
 
+    tileCache.prototype.getGeomLODforZ = function(zoom){
+      if (zoom > 17 ){
+        return 9;
+      } else if(zoom >= 17){
+        return 8;
+      } else if(zoom >= 16){
+        return 7;
+      } else if(zoom >= 15){
+        return 6;
+      } else if(zoom >= 14){
+        return 5;
+      } else if(zoom >= 13){
+        return 4;
+      } else if(zoom >= 12){
+        return 3;
+      } else if(zoom >= 11){
+        return 2;
+      } else if(zoom >= 10){
+        return 1;
+      } else {
+        return 1;
+      }
+    };
+
     return tileCache;
 })();
 
 var renderTileRequestCount = 0;
 
-
+var nano = require('nano')('http://localhost:5984');
+var test_db = nano.db.use('test_db');
 
 app.get('/se/renderTile', function(req, res){
   renderTileRequestCount++;
   //http://localhost:9001/se/renderTile?x=1&y=2&z=3
+
+  var callback = function(feature_collection){
+    res.json({ "xyz" : xyz, 'json': feature_collection, 'bound': bound});
+    var data = { 
+      id: id,
+      FeatureCollection: feature_collection
+    };
+
+    test_db.insert(data, id, function(err, body){
+      if(err){
+        console.log("errorr: ", err);
+      }
+    });
+  };
+
   var x = req.param('x'),
       y = req.param('y'),
       z = req.param('z');
@@ -492,43 +527,21 @@ app.get('/se/renderTile', function(req, res){
   };
 
   var cache = new tileCache();
-
-  console.log("gy", xyz.y, " ty:", cache.gyToTy(xyz.y, xyz.z));
   
   //Y based on TMS not google
   var ty = cache.gyToTy(xyz.y, xyz.z);
-  
   var bound = cache.TileLatLonBounds(xyz.x, ty, xyz.z);
+  var id = xyz.x + '-' + xyz.y + '-' + xyz.z;
 
-  var callback = function(feature_collection){
-   // console.log('callback');
-   // console.log("ft", JSON.stringify(feature_collection));
-    res.json({ "xyz" : xyz, 'json': feature_collection, 'bound': bound});
-  };
-
-  var tileJson = getTile([bound[1], bound[0], bound[3], bound[2]], 'obce', 'vfr_instalace2', 'geometry_1', 'ogc_fid', callback);
-  //console.log('bound: ', bound);
-
-  //console.log("ft", JSON.stringify(tileJson));
-
-
-  var nano = require('nano')('http://localhost:5984');
-
-  var test_db = nano.db.use('test_db');
-  //zjistit co se stane pokud db neexistruje
-
-  var data = { 
-    name: 'pikachu', 
-    skills: ['thunder bolt', 'iron tail', 'quick attack', 'mega punch'], 
-    type: 'electric' 
-  };
-
-  test_db.insert(data, 'pikachu1', function(err, body){
-    if(!err){
-      console.log("errorr: ", err);
-      //awesome
+  //ziskani dlazdice pokud je v cache...pokud neni tak se vygeneruje a vlozi do CouchDB cache
+  test_db.get(id, function(err, body) {
+    if (!err) {
+      res.json({ "xyz" : xyz, 'json': body.FeatureCollection, 'bound': bound});
+    } else {
+      var tileJson = getTile([bound[1], bound[0], bound[3], bound[2]], 'obce', 'vfr_instalace2',  'geometry_' + cache.getGeomLODforZ(xyz.z), 'ogc_fid', callback);
     }
   });
+
 });
 
 
