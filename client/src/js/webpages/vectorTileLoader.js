@@ -70,24 +70,40 @@ vectorTileLoader.prototype.loaderFunction = function(extent, level, projection, 
     'z': xyz[0]
   };
 
+  var loadFromCouchDB = false;
 
-  //http://localhost:9001/se/renderTile?x=1118&y=1346&z=11
-
-  $.ajax({
-    url: 'http://localhost:9001/se/renderTile',
-    type: "get",
-    data: dataXYZ,
-    datatype: 'json',
-    success: function(data, status, xhr){
-      this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
-      this_.remaining--;
-      callback(data.json.features, undefined, 'first', "DF_ID", data.xyz.z);
-    },
-    error:function(er){
-      return console.log("chyba: ", er);
-    }   
-  }); 
-
+  if(loadFromCouchDB){
+    $.ajax({
+      url: 'http://127.0.0.1:5984/test_db/' + dataXYZ.x + '-' + dataXYZ.y + '-' + dataXYZ.z,
+      type: "get",
+      datatype: 'json',
+      success: function(data, status, xhr){
+        var data = JSON.parse(data);
+        this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
+        this_.remaining--;
+        var z = parseInt(/[^-]*$/.exec(data._id)[0], 10);
+        callback(data.FeatureCollection.features, undefined, 'first', "DF_ID", z);
+      },
+      error:function(er){
+        return console.log("chyba: ", er);
+      }   
+    });
+  } else {
+    $.ajax({
+      url: 'http://localhost:9001/se/renderTile',
+      type: "get",
+      data: dataXYZ,
+      datatype: 'json',
+      success: function(data, status, xhr){
+        this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
+        this_.remaining--;
+        callback(data.json.features, undefined, 'first', "DF_ID", data.xyz.z);
+      },
+      error:function(er){
+        return console.log("chyba: ", er);
+      }   
+    });  
+  }
 
   //getTileCoordForCoordAndZ(coordinate, z, opt_tileCoord
   /*

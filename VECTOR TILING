@@ -5,14 +5,8 @@ SI
 		- 
 
 VECTOR TILING
-- predelat loaderFunction 
-	- udelat XYZ ziskavani
-
 - cache
-	- udelat renderovani do cache (couchDB)
-	- predelat loader function
-		- XYZ
-	- promyslet narocnost kontinualniho mergovani - odkazovani na pointery na nejblizsi cast geometrie
+	- udelat renderovani do cache (couchDB) -> DONE DONE 
 
 - geojson vs topojson
 
@@ -32,8 +26,6 @@ VECTOR TILING
 - kouknout na morandiniho srovnani - jestli by se neco z toho nedalo vyuzit 
 
 
-
-
 - poznamky: 
 	- spatial indexing nebo spatial index service? nebo nejak jinak?
 		- spis asi mluvit o sluzbe
@@ -48,6 +40,7 @@ VECTOR TILING
 	- neslo by nahrat data RUIAN na mapbox vector tiles
 	- co je tile.openstreetmap.us je to open source service?
 	- kouknout na podmety a revidovat text
+	- komentar k foss2015 - o VT http://geothought.blogspot.cz/
 
 
 Nasledny postup

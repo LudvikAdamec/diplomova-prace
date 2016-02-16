@@ -345,6 +345,16 @@ app.get('/se/getTiledGeomInBBOX', function(req, res){
 
 
 /*************        TILECACHE          ****************/
+var topojson = require("topojson");
+
+var convertGeoToTopo = function (feature_collection) {
+  //var topology = topojson.topology({collection: feature_collection, propertyTransform: function propertyTransform(feature) {return feature.properties;}});
+  var topology = topojson.topology({collection: feature_collection},{"property-transform":function(object){return object.properties;}});
+
+  return topology;
+};
+
+
 var getTile = function(extent, layerName, dbName, geomRow, idColumn, callback){
   //console.log("xxxxxxxxxxx - getTile");
   var extentConverted = extent.map(function (x) {
@@ -496,24 +506,27 @@ var tileCache = (function () {
 var renderTileRequestCount = 0;
 
 var nano = require('nano')('http://localhost:5984');
+//var test_db = nano.db.use('topojson_db');
 var test_db = nano.db.use('test_db');
-
 app.get('/se/renderTile', function(req, res){
   renderTileRequestCount++;
   //http://localhost:9001/se/renderTile?x=1&y=2&z=3
 
-  var callback = function(feature_collection){
+  var callback = function(feature_collection){    
     res.json({ "xyz" : xyz, 'json': feature_collection, 'bound': bound});
-    var data = { 
-      id: id,
-      FeatureCollection: feature_collection
-    };
+    if(feature_collection.features.length > 0){
+      var data = { 
+        id: id,
+        FeatureCollection: feature_collection //convertGeoToTopo(feature_collection)
+      };
 
-    test_db.insert(data, id, function(err, body){
-      if(err){
-        console.log("errorr: ", err);
-      }
-    });
+    
+      test_db.insert(data, id, function(err, body){
+        if(err){
+          console.log("errorr: ", err);
+        }
+      });
+    }
   };
 
   var x = req.param('x'),
@@ -538,13 +551,12 @@ app.get('/se/renderTile', function(req, res){
     if (!err) {
       res.json({ "xyz" : xyz, 'json': body.FeatureCollection, 'bound': bound});
     } else {
+      //console.log('generating tile: ', x, y, z);
       var tileJson = getTile([bound[1], bound[0], bound[3], bound[2]], 'obce', 'vfr_instalace2',  'geometry_' + cache.getGeomLODforZ(xyz.z), 'ogc_fid', callback);
     }
   });
 
 });
-
-
 
 
 
