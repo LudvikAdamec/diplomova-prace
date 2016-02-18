@@ -43,8 +43,7 @@ goog.require('ol.Overlay');
   //var method = "vectorTiling";
 
 
-  var center = [15.2, 49.43];
-  center = [16.554, 49.246]
+  var center = [16.554, 49.246]
   
   var initZoom = 12;
 
@@ -202,8 +201,6 @@ goog.require('ol.Overlay');
           });
         }
 
-        console.log(loader.loaderFunctionCount, loader.loadGeometriesCount, loader.loadFeaturesCount);
-
         for (var j = 0; j < responseFeatures.length; j++) {
           if(decrease){
             geojsonFeatureToLayer(responseFeatures[j], vector, level);
@@ -222,7 +219,7 @@ goog.require('ol.Overlay');
                 loader.loadFeaturesCount == 0 && 
                 mergeTool.featuresToMergeOnLevel[level].length
               ){
-                console.log("pocet k merge:", mergeTool.featuresToMergeOnLevel[level].length);
+                //console.log("pocet k merge:", mergeTool.featuresToMergeOnLevel[level].length);
               //if(loadingExtents == 0 && mergeTool.featuresToMergeOnLevel[level].length){
                 console.log("merge");
                 loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
@@ -265,7 +262,6 @@ goog.require('ol.Overlay');
     var callbackVT = function(responseFeatures, level, decrease, message, zoom){
       if(!level){
         level = vectorSource.getLODforZ(zoom);
-        console.log(level);
       }
 
        loadingExtents--;
@@ -305,7 +301,6 @@ goog.require('ol.Overlay');
           var id = responseFeatures[j].properties.id;
           if(vtCache.indexOf(id) == -1){
             vtCache.push(id);
-            console.log(responseFeatures[j]);
             geojsonFeatureToLayer(responseFeatures[j], vector, level);
           }
 
@@ -368,8 +363,10 @@ goog.require('ol.Overlay');
       vtLoader.loaderFunction(extent, level, projection, callbackVT, resolution);
     };
 
+
+
     var vectorSource = new ol.source.MultiLevelVector({
-      loader: loaderFunctionVT,
+      loader: vtLoader.loaderFunction, // loaderFunctionVT,
       strategy: ol.loadingstrategy.tile(tileGrid),
       view: map.getView()
     });
@@ -448,7 +445,7 @@ goog.require('ol.Overlay');
      */
     
 
-    var geojsonFeatureToLayer = function(feature, layer ) {
+    var geojsonFeatureToLayer = function(feature ) {
       var id = feature.properties.id;
       var olFeature =  geojsonFormat.readFeature(feature, {featureProjection: 'EPSG:3857'});
       goog.asserts.assert(!!olFeature.get('id'));

@@ -7,6 +7,7 @@ goog.require('goog.array');
 goog.require('featuresOperations');
 
 
+
 /**
  * tool for merging geometries (only merge data and pass them via callback back)
  * @param  {[type]} mergeParams - parameters
@@ -62,7 +63,7 @@ mergeTools.prototype.addFeaturesOnLevel = function (feature, level) {
   }
 };
 
-mergeTools.prototype.mergeTopojsons = function(callback, level){
+mergeTools.prototype.mergeTopojsons = function(callback, level, that){
   for (var i = 0; i < this.topojsonOnLevel[level].length; i++) {
       var features = topojson.feature(this.topojsonOnLevel[level][i], this.topojsonOnLevel[level][i].objects.collection);
       for (var j = 0; j < features.features.length; j++) {
@@ -73,7 +74,7 @@ mergeTools.prototype.mergeTopojsons = function(callback, level){
 
   this.topojsonOnLevel[level] = [];
 
-  this.merge(callback, level);
+  this.merge(callback, level, that);
 };
 
 
@@ -84,23 +85,23 @@ mergeTools.prototype.mergeTopojsons = function(callback, level){
  * @param  {[type]}   level     
  * @return {[type]}   
  */
-mergeTools.prototype.merge = function (callback, level) {
+mergeTools.prototype.merge = function (callback, level, that) {
   if(!this.featuresToMergeOnLevel[level]){
     this.featuresToMergeOnLevel[level] = [];
     this.allFeaturesOnLevel[level] = [];
   }
 
   if(this.topojsonOnLevel.length){
-    this.mergeTopojsons(callback, level)
+    this.mergeTopojsons(callback, level, that);
   }
 
   if(this.tilesToMerge.length){
-    this.mergeTiles(callback);
+    this.mergeTiles(callback, that);
   } else if(this.featuresToMergeOnLevel[level].length) {
-    this.mergeFeatures(this.allFeaturesOnLevel[level], this.featuresToMergeOnLevel[level], callback, level);
+    this.mergeFeatures(this.allFeaturesOnLevel[level], this.featuresToMergeOnLevel[level], callback, level, that);
     this.featuresToMergeOnLevel[level] = [];
   } else if(this.featuresToMerge.length) {
-    this.mergeFeatures(this.allFeatures, this.featuresToMerge, callback);
+    this.mergeFeatures(this.allFeatures, this.featuresToMerge, callback, level, that);
     this.featuresToMerge = [];
   } else {
     callback({
@@ -113,7 +114,7 @@ mergeTools.prototype.merge = function (callback, level) {
  * function for merging unmerged tiles saved in tilesToMerge
  * @return {[type]} [description]
  */
-mergeTools.prototype.mergeTiles = function(callback){
+mergeTools.prototype.mergeTiles = function(callback, that){
   while(this.tilesToMerge.length) {
     var dlazdice = this.tilesToMerge.shift();
     var geojsonTile = topojson.feature(dlazdice, dlazdice.objects.vectile);
@@ -129,7 +130,7 @@ mergeTools.prototype.mergeTiles = function(callback){
  * @param  {object} featuresToMerge features to merge
  * @return {[type]}      [description]
  */
-mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callback, level) {
+mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callback, level, that) {
   var this_ = this;
 
   var featureToFeatures = function(f) {
@@ -197,8 +198,8 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callbac
             "feature" : ftm,
             "geometry": newGeom,
             "mergedGeojsonGeom": merged,
-            "updateExisting": true
-          });
+            "updateExisting": true,
+          }, that);
         } else {
           var newGeom = this_.featureFormat.readGeometry(ftm.geometry, {featureProjection: 'EPSG:3857'});
           features.push(ftm);
@@ -207,7 +208,7 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callbac
             "geometry": newGeom,
             "mergedGeojsonGeom": ftm.geometry,
             "updateExisting": false
-          });
+          }, that);
         }
       }
     }
