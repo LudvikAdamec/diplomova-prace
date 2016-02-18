@@ -349,6 +349,7 @@ var topojson = require("topojson");
 
 var convertGeoToTopo = function (feature_collection) {
   //var topology = topojson.topology({collection: feature_collection, propertyTransform: function propertyTransform(feature) {return feature.properties;}});
+  //console.log(feature_collection);
   var topology = topojson.topology({collection: feature_collection},{"property-transform":function(object){return object.properties;}});
 
   return topology;
@@ -504,20 +505,29 @@ var tileCache = (function () {
 })();
 
 var renderTileRequestCount = 0;
+var loadTopojsonFormat = false;
 
 var nano = require('nano')('http://localhost:5984');
-//var test_db = nano.db.use('topojson_db');
+//var test_db = nano.db.use('topo_db');
 var test_db = nano.db.use('test_db');
 app.get('/se/renderTile', function(req, res){
   renderTileRequestCount++;
   //http://localhost:9001/se/renderTile?x=1&y=2&z=3
 
   var callback = function(feature_collection){    
-    res.json({ "xyz" : xyz, 'json': feature_collection, 'bound': bound});
-    if(feature_collection.features.length > 0){
+    var fCount = feature_collection.features.length;
+    var jsonData = feature_collection;
+    
+    if(loadTopojsonFormat){
+      jsonData = convertGeoToTopo(feature_collection);
+    }
+    
+    res.json({ "xyz" : xyz, 'json': jsonData, 'bound': bound});
+
+    if(fCount){
       var data = { 
         id: id,
-        FeatureCollection: feature_collection //convertGeoToTopo(feature_collection)
+        FeatureCollection: jsonData
       };
 
     

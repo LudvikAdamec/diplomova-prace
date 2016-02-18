@@ -28,6 +28,8 @@ mergeTools = function(mergeParams) {
   //use for spatial indexing - when one feature for every level
   this.featuresToMergeOnLevel = {};
   this.allFeaturesOnLevel = {};
+
+  this.topojsonOnLevel = {};
   
   this.operations = new featuresOperations();
   this.featureFormat = mergeParams.featureFormat;
@@ -35,6 +37,17 @@ mergeTools = function(mergeParams) {
 
 mergeTools.prototype.addTiles = function (tile) {
   this.tilesToMerge.push(tile);
+};
+
+mergeTools.prototype.addTopoJsonFeaturesOnLevel = function(topojsonData, level){
+  if(!this.topojsonOnLevel[level]){
+    this.topojsonOnLevel[level] = [];
+    this.allFeaturesOnLevel[level] = [];
+  }
+
+  if(topojsonData.objects){
+    this.topojsonOnLevel[level].push(topojsonData);
+  }
 };
 
 mergeTools.prototype.addFeaturesOnLevel = function (feature, level) {
@@ -49,6 +62,20 @@ mergeTools.prototype.addFeaturesOnLevel = function (feature, level) {
   }
 };
 
+mergeTools.prototype.mergeTopojsons = function(callback, level){
+  for (var i = 0; i < this.topojsonOnLevel[level].length; i++) {
+      var features = topojson.feature(this.topojsonOnLevel[level][i], this.topojsonOnLevel[level][i].objects.collection);
+      for (var j = 0; j < features.features.length; j++) {
+        this.addFeaturesOnLevel(features.features[j], level);
+      }
+      //this.featuresToMergeOnLevel[level] = this.featuresToMergeOnLevel[level].concat(features.features);
+  }
+
+  this.topojsonOnLevel[level] = [];
+
+  this.merge(callback, level);
+};
+
 
 /**
  * merge function is starting point for merging by all 
@@ -61,6 +88,10 @@ mergeTools.prototype.merge = function (callback, level) {
   if(!this.featuresToMergeOnLevel[level]){
     this.featuresToMergeOnLevel[level] = [];
     this.allFeaturesOnLevel[level] = [];
+  }
+
+  if(this.topojsonOnLevel.length){
+    this.mergeTopojsons(callback, level)
   }
 
   if(this.tilesToMerge.length){
@@ -102,14 +133,17 @@ mergeTools.prototype.mergeFeatures = function(features, featuresToMerge, callbac
   var this_ = this;
 
   var featureToFeatures = function(f) {
-    goog.asserts.assert(f.geometry.type === 'Polygon'
-      || f.geometry.type === 'MultiPolygon');
-    if(f.geometry.type === 'Polygon') {
-      return [f];
+    
+    if(f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'){
+      if(f.geometry.type === 'Polygon') {
+        return [f];
+      } else {
+        return goog.array.map(f.geometry.coordinates, function(polygon) {
+          return this_.operations.buildPolygon(polygon, f.properties);
+        });
+      }
     } else {
-      return goog.array.map(f.geometry.coordinates, function(polygon) {
-        return this_.operations.buildPolygon(polygon, f.properties);
-      });
+      console.log("wrong type: ", f);
     }
   }
 

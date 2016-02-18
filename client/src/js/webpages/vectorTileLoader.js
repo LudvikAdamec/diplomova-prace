@@ -71,6 +71,7 @@ vectorTileLoader.prototype.loaderFunction = function(extent, level, projection, 
   };
 
   var loadFromCouchDB = false;
+  var loadTopojsonFormat = false;
 
   if(loadFromCouchDB){
     $.ajax({
@@ -97,7 +98,11 @@ vectorTileLoader.prototype.loaderFunction = function(extent, level, projection, 
       success: function(data, status, xhr){
         this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
         this_.remaining--;
-        callback(data.json.features, undefined, 'first', "DF_ID", data.xyz.z);
+        if(loadTopojsonFormat){
+          callback(data.json, undefined, 'first', "DF_ID", data.xyz.z);
+        } else {
+          callback(data.json.features, undefined, 'first', "DF_ID", data.xyz.z);
+        }
       },
       error:function(er){
         return console.log("chyba: ", er);

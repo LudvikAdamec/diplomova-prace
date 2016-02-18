@@ -260,6 +260,8 @@ goog.require('ol.Overlay');
 
     var vtCache = [];    
 
+    var loadTopojsonFormat = false;
+
     var callbackVT = function(responseFeatures, level, decrease, message, zoom){
       if(!level){
         level = vectorSource.getLODforZ(zoom);
@@ -283,33 +285,67 @@ goog.require('ol.Overlay');
           "sizeMessage": contentSize + 'mb'
         });
 
-      if(loadingExtents == 0){
-        var contentSize = Math.round(vtLoader.loadedContentSize * 100) / 100;
-        console.log("contentSize:", contentSize);
-        loadingStatusChange({
-          "statusMessage": 'Doba nacteni vsech dlazdic: ' + timeFinish - timeStart + ' s - ' + 'extent loaded <i class="fa fa-check"></i>', 
-          "sizeMessage": contentSize + 'mb'
-        });
+      if(!loadTopojsonFormat){
+        if(loadingExtents == 0){
+          var contentSize = Math.round(vtLoader.loadedContentSize * 100) / 100;
+          console.log("contentSize:", contentSize);
+          loadingStatusChange({
+            "statusMessage": 'Doba nacteni vsech dlazdic: ' + timeFinish - timeStart + ' s - ' + 'extent loaded <i class="fa fa-check"></i>', 
+            "sizeMessage": contentSize + 'mb'
+          });
 
-        loadingStatusChange({
-          "statusExtents": loadingExtents,
-          "loadingTime": timeFinish - timeStart
-        });
+          loadingStatusChange({
+            "statusExtents": loadingExtents,
+            "loadingTime": timeFinish - timeStart
+          });
 
-      }
-
-      for (var j = 0; j < responseFeatures.length; j++) {
-        var id = responseFeatures[j].properties.id;
-        if(vtCache.indexOf(id) == -1){
-          vtCache.push(id);
-          geojsonFeatureToLayer(responseFeatures[j], vector, level);
         }
 
-        mergeTool.addFeaturesOnLevel(responseFeatures[j], level);        
+        for (var j = 0; j < responseFeatures.length; j++) {
+          var id = responseFeatures[j].properties.id;
+          if(vtCache.indexOf(id) == -1){
+            vtCache.push(id);
+            console.log(responseFeatures[j]);
+            geojsonFeatureToLayer(responseFeatures[j], vector, level);
+          }
+
+          mergeTool.addFeaturesOnLevel(responseFeatures[j], level);        
+        }
+      } else {
+        for (var j = 0; j < responseFeatures.objects.collection.geometries.length; j++) {
+          var feature = responseFeatures.objects.collection.geometries[j];
+
+          var id = feature.properties.id;
+          if(vtCache.indexOf(id) == -1){
+            vtCache.push(id);
+            console.log(responseFeatures[j]);
+            var f = {
+              type: "Feature",
+              properties: feature.properties,
+              geometry: {
+                "type": "Polygon",
+                "coordinates": []
+              }
+            };
+            
+            geojsonFeatureToLayer(f, vector, level);
+          }     
+        }
+        mergeTool.addTopoJsonFeaturesOnLevel(responseFeatures, level);   
       }
 
       //if(/*loadingExtents < 1 && */mergeTool.featuresToMergeOnLevel[level].length){
         //loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
+      if(loadingExtents < 1 && mergeTool.topojsonOnLevel[level] && mergeTool.topojsonOnLevel[level].length){
+        console.log("merge");
+        mergingStarted = new Date();
+        mergeTool.mergeTopojsons(mergeCallback, level);
+        mergingFinished = new Date();
+        totalMergeTime += mergingFinished - mergingStarted;
+        loadingStatusChange({"mergingTime": totalMergeTime});
+        vectorSource.changed();
+      }
+
       if(loadingExtents < 1 && mergeTool.featuresToMergeOnLevel[level] && mergeTool.featuresToMergeOnLevel[level].length){
         console.log("merge");
         mergingStarted = new Date();
