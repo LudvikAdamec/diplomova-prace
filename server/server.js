@@ -414,7 +414,7 @@ var getTile = function(extent, layerName, dbName, geomRow, idColumn, callback){
 
     query.on('end', function() {
         client.end();
-        callback(feature_collection);
+        callback(feature_collection, layerName);
     });
 
     if(err) {
@@ -509,27 +509,35 @@ var loadTopojsonFormat = false;
 
 var nano = require('nano')('http://localhost:5984');
 //var test_db = nano.db.use('topo_db');
-var test_db = nano.db.use('test_db');
+var test_db = nano.db.use('new_db');
 app.get('/se/renderTile', function(req, res){
+  var layersToLoad = 0;
+  var resObject = {};
+
   renderTileRequestCount++;
   //http://localhost:9001/se/renderTile?x=1&y=2&z=3
 
-  var callback = function(feature_collection){    
+  var callback = function(feature_collection, layerName){   
+    layersToLoad--; 
+    //console.log(layersToLoad);
     var fCount = feature_collection.features.length;
     var jsonData = feature_collection;
+
+    resObject[layerName] = jsonData;
     
     if(loadTopojsonFormat){
       jsonData = convertGeoToTopo(feature_collection);
     }
-    
-    res.json({ "xyz" : xyz, 'json': jsonData, 'bound': bound});
 
-    if(fCount){
+    if(layersToLoad == 0){
+      res.json({ "xyz" : xyz, 'json': resObject, 'bound': bound});
+    }
+
+    if(fCount && layersToLoad == 0){
       var data = { 
         id: id,
-        FeatureCollection: jsonData
+        FeatureCollection: resObject
       };
-
     
       test_db.insert(data, id, function(err, body){
         if(err){
@@ -556,16 +564,27 @@ app.get('/se/renderTile', function(req, res){
   var bound = cache.TileLatLonBounds(xyz.x, ty, xyz.z);
   var id = xyz.x + '-' + xyz.y + '-' + xyz.z;
 
-  //ziskani dlazdice pokud je v cache...pokud neni tak se vygeneruje a vlozi do CouchDB cache
-  test_db.get(id, function(err, body) {
-    if (!err) {
-      res.json({ "xyz" : xyz, 'json': body.FeatureCollection, 'bound': bound});
-    } else {
-      //console.log('generating tile: ', x, y, z);
-      var tileJson = getTile([bound[1], bound[0], bound[3], bound[2]], 'obce', 'vfr_instalace2',  'geometry_' + cache.getGeomLODforZ(xyz.z), 'ogc_fid', callback);
+  var loadFromCache = true;
+  if(loadFromCache){
+    //ziskani dlazdice pokud je v cache...pokud neni tak se vygeneruje a vlozi do CouchDB cache
+    test_db.get(id, function(err, body) {
+      if (!err) {
+        res.json({ "xyz" : xyz, 'json': body.FeatureCollection, 'bound': bound});
+      } else {
+        var layers = ['obce', 'okresy'];
+        for (var i = 0; i < layers.length; i++) {
+          layersToLoad++;
+          getTile([bound[1], bound[0], bound[3], bound[2]], layers[i], 'vfr_instalace2',  'geometry_' + cache.getGeomLODforZ(xyz.z), 'ogc_fid', callback);
+        }
+      }
+    });
+  } else {
+    var layers = ['obce', 'okresy'];
+    for (var i = 0; i < layers.length; i++) {
+      layersToLoad++;
+      getTile([bound[1], bound[0], bound[3], bound[2]], layers[i], 'vfr_instalace2',  'geometry_' + cache.getGeomLODforZ(xyz.z), 'ogc_fid', callback);
     }
-  });
-
+  }
 });
 
 

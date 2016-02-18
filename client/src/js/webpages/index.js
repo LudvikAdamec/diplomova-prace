@@ -29,6 +29,8 @@ goog.require('ol.source.OSM');
 goog.require('spatialIndexLoader');
 goog.require('vectorTileLoader');
 goog.require('mergeTools');
+goog.require('logInfo');
+
 
 goog.require('ol.source.MultiLevelVector');
 
@@ -65,7 +67,7 @@ goog.require('ol.Overlay');
     source: new ol.source.OSM()
   });
 
-  map.addLayer(bg);
+  //map.addLayer(bg);
 
   var geojsonFormat = new ol.format.GeoJSON({
     defaultDataProjection: 'EPSG:4326'
@@ -96,18 +98,62 @@ goog.require('ol.Overlay');
       "featureFormat": geojsonFormat
     });
 
+
+    var obceSource = new ol.source.MultiLevelVector({
+      view: map.getView()
+    });
+
+    var obceL = new ol.layer.Vector({
+      source: obceSource,
+      //minResolution: 310,
+      maxResolution: 310,
+      style: new ol.style.Style({
+        stroke: new ol.style.Stroke({
+          color: 'green',
+          width: 1
+        }),
+        fill: new ol.style.Fill({
+          color: 'rgba(150, 0, 55, 0.3)'
+        })
+      })
+    });
+
+    map.addLayer(obceL);
+
+    var okresySource = new ol.source.MultiLevelVector({
+      view: map.getView()
+    });
+
+    var okresyL = new ol.layer.Vector({
+      source: okresySource,
+      style: new ol.style.Style({
+        stroke: new ol.style.Stroke({
+          color: 'red',
+          width: 1
+        }),
+        fill: new ol.style.Fill({
+          color: 'rgba(100, 100, 155, 0.05)'
+        })
+      })
+    });
+    map.addLayer(okresyL);
+
     /**
      * parameters used ib spatialIndexLoader (make request on server from this parameters)
      * @type {Object}
      */
     var loaderParams = {
-      "db": {
-        "layerName" : "obce", //"parcelswgs";
-        "dbname" : "vfr_instalace2",
-        "geomColumn" : "geometry_1",
-        "idColumn" : "ogc_fid",
-        "url" : "http://localhost:9001/se/"
-      } 
+      db: {
+        layerName : "obce", //"parcelswgs";
+        dbname : "vfr_instalace2",
+        geomColumn : "geometry_1",
+        idColumn : "ogc_fid",
+        url : "http://localhost:9001/se/"
+      },
+      layers: {
+        obce: obceSource,
+        okresy: okresySource
+      }
     };
 
     var loader = new spatialIndexLoader(loaderParams);
@@ -375,7 +421,7 @@ goog.require('ol.Overlay');
       source: vectorSource,
       style: new ol.style.Style({
         stroke: new ol.style.Stroke({
-          color: 'blue',
+          color: 'green',
           width: 1
         }),
         fill: new ol.style.Fill({

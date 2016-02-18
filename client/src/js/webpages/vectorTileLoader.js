@@ -5,7 +5,7 @@ goog.require('ol.proj');
 goog.require('goog.asserts');
 goog.require('goog.array');
 goog.require('ol.source.MultiLevelVector');
-
+goog.require('logInfo');
 
 var that;
 
@@ -16,12 +16,18 @@ var that;
  * @return {[type]}           [description]
  */
 vectorTileLoader = function(params) {
+    console.log(params);
+
     var dbParams = params.db;
     this.url = dbParams.url;
-    this.layerName = dbParams.layerName;
     this.dbname = dbParams.dbname;
     this.geomRow = dbParams.geomColumn;
     this.idColumn = dbParams.idColumn;
+    this.logger = new logInfo();
+
+    //this.layerName = params.layers[0].name;
+
+    this.layers = params.layers;
 
     this.loadedContentSize = 0;
     this.remaining = 0;
@@ -32,6 +38,8 @@ vectorTileLoader = function(params) {
     this.loadingExtents = 0;
 
     this.vtCache = [];
+
+    this.vtLayerCache = {};
 
     this.geojsonFormat = new ol.format.GeoJSON({
       defaultDataProjection: 'EPSG:4326'
@@ -50,25 +58,22 @@ vectorTileLoader = function(params) {
 
 vectorTileLoader.prototype.loaderFunction = function(extent, resolution, projection) {
   that.source = this;
-  console.log("that", that);
-  if(this.loadingExtents == 0){
+  //console.log("that", that);
+  if(that.loadingExtents == 0){
     timeStart = new Date();
+    console.log(timeStart);
   }
 
-  //loadingStatusChange({"statusMessage": 'loading <i class="fa fa-spinner fa-spin"></i>'});
+  that.logger.loadingStatusChange({"statusMessage": 'loading <i class="fa fa-spinner fa-spin"></i>'});
   var level = ol.source.MultiLevelVector.prototype.getLODforRes(resolution);
   that.loadingExtents++;
   that.load(extent, level, projection, that.callback, resolution, this);
 };
 
-vectorTileLoader.prototype.geojsonFeatureToLayer = function(feature, layer, level ) {
+vectorTileLoader.prototype.geojsonFeatureToLayer = function(feature, layer) {
   var olFeature =  this.geojsonFormat.readFeature(feature, {featureProjection: 'EPSG:3857'});
-  this.source.addFeature(olFeature);
+  layer.addFeature(olFeature);
 };
-
-vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease, message, zoom, this_){
-  //this = this_;
-  var loadTopojsonFormat = false;
 
     var totalTime = 0;  
     var timeStart = 0;
@@ -77,52 +82,66 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
     var mergingFinished = 0;
     var totalMergeTime = 0;
 
+vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease, message, zoom, this_){
+  //this = this_;
+  var loadTopojsonFormat = false;
+
   if(!level){
     level = this_.source.getLODforZ(zoom);
   }
 
   this_.loadingExtents--;
 
-  /*if (this_.loadingExtents == 0) {
+  if (this_.loadingExtents == 0) {
       timeFinish = new Date();
 
   };
 
-  loadingStatusChange({
-    "statusExtents": loadingExtents, 
+  this_.logger.loadingStatusChange({
+    "statusExtents": this_.loadingExtents, 
     "loadingTime": new Date() - timeStart
   });
 
-  var contentSize = Math.round(vtLoader.loadedContentSize * 100) / 100;
-    loadingStatusChange({
+  var contentSize = Math.round(this_.loadedContentSize * 100) / 100;
+    this_.logger.loadingStatusChange({
       "sizeMessage": contentSize + 'mb'
     });
-  */
+  
 
   if(!loadTopojsonFormat){
-    /*if(loadingExtents == 0){
-      var contentSize = Math.round(vtLoader.loadedContentSize * 100) / 100;
+    if(this_.loadingExtents == 0){
+      var contentSize = Math.round(this_.loadedContentSize * 100) / 100;
       console.log("contentSize:", contentSize);
-      loadingStatusChange({
+      this_.logger.loadingStatusChange({
         "statusMessage": 'Doba nacteni vsech dlazdic: ' + timeFinish - timeStart + ' s - ' + 'extent loaded <i class="fa fa-check"></i>', 
         "sizeMessage": contentSize + 'mb'
       });
 
-      loadingStatusChange({
-        "statusExtents": loadingExtents,
+      this_.logger.loadingStatusChange({
+        "statusExtents": this_.loadingExtents,
         "loadingTime": timeFinish - timeStart
       });
 
-    }*/
+    }
 
-    for (var j = 0; j < responseFeatures.length; j++) {
-      var id = responseFeatures[j].properties.id;
-      if(this_.vtCache.indexOf(id) == -1){
-        this_.vtCache.push(id);
-        this_.geojsonFeatureToLayer(responseFeatures[j]);
+    // PODMINKA DODELAT i pro single layer
+    var aha = Object.keys(responseFeatures);
+
+    for(var m = 0; m < aha.length; m++){
+      var features = responseFeatures[aha[m]].features;
+      if(!this_.vtLayerCache[aha[m]]){
+        this_.vtLayerCache[aha[m]] = [];
       }
+   
+      for (var j = 0; j < features.length; j++) {
+        var id = features[j].properties.id;
+        if(this_.vtLayerCache[aha[m]].indexOf(id) == -1){
+          this_.vtLayerCache[aha[m]].push(id);
+          this_.geojsonFeatureToLayer(features[j], this_.layers[aha[m]]);
+        }
 
-      this_.mergeTool.addFeaturesOnLevel(responseFeatures[j], level);        
+        this_.mergeTool.addFeaturesOnLevelInLayer(features[j], level, aha[m]);        
+      }
     }
   } else {
     for (var j = 0; j < responseFeatures.objects.collection.geometries.length; j++) {
@@ -147,8 +166,23 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
     this_.mergeTool.addTopoJsonFeaturesOnLevel(responseFeatures, level);   
   }
 
-  //if(/*loadingExtents < 1 && */this.mergeTool.featuresToMergeOnLevel[level].length){
-    //loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
+  if(this_.loadingExtents < 10){
+    if(this_.mergeTool.featuresToMergeOnLevelInLayer[level]){
+      var layers = Object.keys(this_.mergeTool.featuresToMergeOnLevelInLayer[level]);
+      for (var n = 0; n < layers.length; n++) {
+        if(this_.mergeTool.featuresToMergeOnLevelInLayer[level][layers[n]].length){
+          mergingStarted = new Date();
+           this_.mergeTool.merge(this_.mergeMultipleCallback, level, this_);
+          mergingFinished = new Date();
+          totalMergeTime += mergingFinished - mergingStarted;
+          this_.logger.loadingStatusChange({"mergingTime": totalMergeTime});
+          this_.source.changed();
+          break;
+        }
+      }
+    }
+  }  
+
   if(this_.loadingExtents < 1 && this_.mergeTool.topojsonOnLevel[level] && this_.mergeTool.topojsonOnLevel[level].length){
     console.log("merge");
     mergingStarted = new Date();
@@ -167,6 +201,36 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
     totalMergeTime += mergingFinished - mergingStarted;
     //loadingStatusChange({"mergingTime": totalMergeTime});
     this_.source.changed();
+  }
+};
+
+vectorTileLoader.prototype.mergeMultipleCallback = function(responseObject, that, layerName){
+  if(responseObject.mergingFinished){
+    //loadingStatusChange({"statusMessage": '<i class="fa fa-check"></i>'});
+    //mergingFinished = new Date();
+    //loadingStatusChange({"mergingTime": totalMergeTime});
+  } else {
+    var source = that.layers[layerName];
+    if (source) {
+      var olFeatures = source.getFeatures();
+      var olFeature = goog.array.find(olFeatures, function(f) {
+        return f.get('id') === responseObject.feature.properties.id;
+      });
+      goog.asserts.assert(!!olFeature);
+      if(olFeature){
+        
+        //funcionality for decreasing count of setgeometry on feature
+        var active_geom = olFeature.get('active_geom');
+        if(active_geom === responseObject.feature.properties.geomRow){
+          olFeature.setGeometry(responseObject.geometry);
+        }
+        
+        olFeature.set(responseObject.feature.properties.geomRow, responseObject.geometry);
+      }
+    } else {
+      console.log("error - no reference on ol3 layer object");
+    }
+
   }
 };
 
@@ -271,7 +335,7 @@ vectorTileLoader.prototype.load = function(extent, level, projection, callback, 
         if(loadTopojsonFormat){
           callback(data.json, undefined, 'first', "DF_ID", data.xyz.z, this_);
         } else {
-          callback(data.json.features, undefined, 'first', "DF_ID", data.xyz.z, this_);
+          callback(data.json, undefined, 'first', "DF_ID", data.xyz.z, this_);
         }
       },
       error:function(er){
