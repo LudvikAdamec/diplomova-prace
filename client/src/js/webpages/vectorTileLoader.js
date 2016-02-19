@@ -65,7 +65,8 @@ vectorTileLoader.prototype.loaderFunction = function(extent, resolution, project
   }
 
   that.logger.loadingStatusChange({"statusMessage": 'loading <i class="fa fa-spinner fa-spin"></i>'});
-  var level = ol.source.MultiLevelVector.prototype.getLODforRes(resolution);
+  var zoom = that.tileGrid.getZForResolution(resolution);
+  var level = ol.source.MultiLevelVector.prototype.getLODforZ(zoom);
   that.loadingExtents++;
   that.load(extent, level, projection, that.callback, resolution, this);
 };

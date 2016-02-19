@@ -355,9 +355,33 @@ var convertGeoToTopo = function (feature_collection) {
   return topology;
 };
 
+var existRowInDB = function(layerName, dbName, geomRow, callback){
+  //var queryString = 'SELECT column_name FROM information_schema.columns WHERE table_name = $1 AND column_name = $2;' + layerName + "''' and column_name='''" + geomRow + "''';";
+  var connectionString = "postgres://postgres:postgres@localhost/" + dbName;  
+  pg.connect(connectionString, function(err, client, done) {
+    var query = client.query('SELECT column_name FROM information_schema.columns WHERE table_name = $1 AND column_name = $2', [layerName, geomRow], function(err, result) {
+      if(result.rowCount > 0){
+        callback(true, layerName);
+      } else {
+        callback(false);
+      }
+    });
+
+    query.on('end', function() {
+      client.end();
+      pg.end();
+
+        //callback(feature_collection, layerName);
+    });
+
+    if(err) {
+      console.log(err);
+    }
+  });
+};
 
 var getTile = function(extent, layerName, dbName, geomRow, idColumn, callback){
-  //console.log("xxxxxxxxxxx - getTile");
+  //existRowInDB(layerName, dbName, geomRow);
   var extentConverted = extent.map(function (x) {
     return parseFloat(x, 10);
   });
@@ -390,9 +414,15 @@ var getTile = function(extent, layerName, dbName, geomRow, idColumn, callback){
   var connectionString = "postgres://postgres:postgres@localhost/" + dbName;  
   
   pg.connect(connectionString, function(err, client, done) {
-    var query = client.query(queryString);
+    var query = client.query(queryString, function(err, result){
+      if(err){
+        console.log(err);
+      }
+    });
     // make feature from every row
-    query.on('row', function(row) {        
+    
+    //console.log(query);
+    query.on('row', function(row) {   
       var geom;
       geom = row.geom;
 
@@ -413,8 +443,10 @@ var getTile = function(extent, layerName, dbName, geomRow, idColumn, callback){
     });
 
     query.on('end', function() {
-        client.end();
-        callback(feature_collection, layerName);
+      client.end();
+      callback(feature_collection, layerName);
+      pg.end();
+      return 0;
     });
 
     if(err) {
@@ -478,6 +510,30 @@ var tileCache = (function () {
     };
 
     tileCache.prototype.getGeomLODforZ = function(zoom){
+      if(zoom >= 17){
+        return 17;
+      } else if(zoom >= 16){
+        return 16;
+      } else if(zoom >= 15){
+        return 15;
+      } else if(zoom >= 14){
+        return 14;
+      } else if(zoom >= 13){
+        return 13;
+      } else if(zoom >= 12){
+        return 12;
+      } else if(zoom >= 11){
+        return 11;
+      } else if(zoom >= 10){
+        return 10;
+      } else if(zoom >= 9){
+        return 9;
+      } else if(zoom >= 8){
+        return 8;
+      } else if(zoom >= 7){
+        return 7;
+      }
+
       if (zoom > 17 ){
         return 9;
       } else if(zoom >= 17){
@@ -504,57 +560,25 @@ var tileCache = (function () {
     return tileCache;
 })();
 
-var renderTileRequestCount = 0;
 var loadTopojsonFormat = false;
 
 var nano = require('nano')('http://localhost:5984');
 //var test_db = nano.db.use('topo_db');
 var test_db = nano.db.use('new_db');
+
+
+/*
+ * Request example: http://localhost:9001/se/renderTile?x=1&y=2&z=3
+ */
 app.get('/se/renderTile', function(req, res){
+  //console.log(req);
   var layersToLoad = 0;
   var resObject = {};
-
-  renderTileRequestCount++;
-  //http://localhost:9001/se/renderTile?x=1&y=2&z=3
-
-  var callback = function(feature_collection, layerName){   
-    layersToLoad--; 
-    //console.log(layersToLoad);
-    var fCount = feature_collection.features.length;
-    var jsonData = feature_collection;
-
-    resObject[layerName] = jsonData;
-    
-    if(loadTopojsonFormat){
-      jsonData = convertGeoToTopo(feature_collection);
-    }
-
-    if(layersToLoad == 0){
-      res.json({ "xyz" : xyz, 'json': resObject, 'bound': bound});
-    }
-
-    if(fCount && layersToLoad == 0){
-      var data = { 
-        id: id,
-        FeatureCollection: resObject
-      };
-    
-      test_db.insert(data, id, function(err, body){
-        if(err){
-          console.log("errorr: ", err);
-        }
-      });
-    }
-  };
-
-  var x = req.param('x'),
-      y = req.param('y'),
-      z = req.param('z');
   
   var xyz = {
-    'x': parseInt(x, 10),
-    'y': parseInt(y, 10), 
-    'z': parseInt(z, 10)
+    'x': parseInt(req.param('x'), 10),
+    'y': parseInt(req.param('y'), 10), 
+    'z': parseInt(req.param('z'), 10)
   };
 
   var cache = new tileCache();
@@ -574,7 +598,7 @@ app.get('/se/renderTile', function(req, res){
         var layers = ['obce', 'okresy'];
         for (var i = 0; i < layers.length; i++) {
           layersToLoad++;
-          getTile([bound[1], bound[0], bound[3], bound[2]], layers[i], 'vfr_instalace2',  'geometry_' + cache.getGeomLODforZ(xyz.z), 'ogc_fid', callback);
+          existRowInDB(layers[i], 'vfr_instalace2', 'geometry_' + cache.getGeomLODforZ(xyz.z), existRowCallback);
         }
       }
     });
@@ -585,6 +609,48 @@ app.get('/se/renderTile', function(req, res){
       getTile([bound[1], bound[0], bound[3], bound[2]], layers[i], 'vfr_instalace2',  'geometry_' + cache.getGeomLODforZ(xyz.z), 'ogc_fid', callback);
     }
   }
+
+  var existRowCallback = function(exist, layerName){
+    if(exist){
+      getTile([bound[1], bound[0], bound[3], bound[2]], layerName, 'vfr_instalace2',  'geometry_' + cache.getGeomLODforZ(xyz.z), 'ogc_fid', callback);
+    } else {
+      layersToLoad--;
+      if(layersToLoad == 0){
+        res.json({ "xyz" : xyz, 'json': resObject, 'bound': bound});
+      }
+    }
+  }
+
+  var callback = function(feature_collection, layerName){   
+    layersToLoad--; 
+    var fCount = feature_collection.features.length;
+    var jsonData = feature_collection;
+
+    resObject[layerName] = jsonData;
+    
+    if(loadTopojsonFormat){
+      jsonData = convertGeoToTopo(feature_collection);
+    }
+
+    //console.log(resObject);
+
+    if(layersToLoad == 0){
+      res.json({ "xyz" : xyz, 'json': resObject, 'bound': bound});
+    }
+
+    if(fCount && layersToLoad == 10){
+      var data = { 
+        id: id,
+        FeatureCollection: resObject
+      };
+    
+      test_db.insert(data, id, function(err, body){
+        if(err){
+          console.log("errorr: ", err);
+        }
+      });
+    }
+  };
 });
 
 
