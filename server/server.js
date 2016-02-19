@@ -595,7 +595,8 @@ app.get('/se/renderTile', function(req, res){
       if (!err) {
         res.json({ "xyz" : xyz, 'json': body.FeatureCollection, 'bound': bound});
       } else {
-        var layers = ['obce', 'okresy'];
+        console.log("renderTile - ", id);
+        var layers = ['obce', 'okresy', 'kraje', 'katastralniuzemi'];
         for (var i = 0; i < layers.length; i++) {
           layersToLoad++;
           existRowInDB(layers[i], 'vfr_instalace2', 'geometry_' + cache.getGeomLODforZ(xyz.z), existRowCallback);
@@ -603,7 +604,7 @@ app.get('/se/renderTile', function(req, res){
       }
     });
   } else {
-    var layers = ['obce', 'okresy'];
+    var layers = ['obce', 'okresy', 'kraje', 'katastralniuzemi'];
     for (var i = 0; i < layers.length; i++) {
       layersToLoad++;
       getTile([bound[1], bound[0], bound[3], bound[2]], layers[i], 'vfr_instalace2',  'geometry_' + cache.getGeomLODforZ(xyz.z), 'ogc_fid', callback);
@@ -638,7 +639,7 @@ app.get('/se/renderTile', function(req, res){
       res.json({ "xyz" : xyz, 'json': resObject, 'bound': bound});
     }
 
-    if(fCount && layersToLoad == 10){
+    if(fCount && layersToLoad == 0){
       var data = { 
         id: id,
         FeatureCollection: resObject

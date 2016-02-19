@@ -110,15 +110,13 @@ goog.require('ol.Overlay');
       style: new ol.style.Style({
         stroke: new ol.style.Stroke({
           color: 'green',
-          width: 1
+          width: 0.3
         }),
         fill: new ol.style.Fill({
           color: 'rgba(150, 0, 55, 0.3)'
         })
       })
     });
-
-    map.addLayer(obceL);
 
     var okresySource = new ol.source.MultiLevelVector({
       view: map.getView()
@@ -129,14 +127,51 @@ goog.require('ol.Overlay');
       style: new ol.style.Style({
         stroke: new ol.style.Stroke({
           color: 'red',
-          width: 1
+          width: 1.5
         }),
         fill: new ol.style.Fill({
           color: 'rgba(100, 100, 155, 0.05)'
         })
       })
     });
+
+    var krajeSource = new ol.source.MultiLevelVector({
+      view: map.getView()
+    });
+
+    var krajeL = new ol.layer.Vector({
+      source: krajeSource,
+      //minResolution: 310,
+      style: new ol.style.Style({
+        stroke: new ol.style.Stroke({
+          color: 'blue',
+          width: 2.7
+        })
+      })
+    });
+
+
+    var katastralniuzemiSource = new ol.source.MultiLevelVector({
+      view: map.getView()
+    });
+
+    var katastralniuzemiL = new ol.layer.Vector({
+      source: katastralniuzemiSource,
+      //minResolution: 310,
+      maxResolution: 310,
+      style: new ol.style.Style({
+        stroke: new ol.style.Stroke({
+          color: 'black',
+          width: 0.2
+        })
+      })
+    });
+    
+    map.addLayer(krajeL);
     map.addLayer(okresyL);
+    map.addLayer(obceL);
+    map.addLayer(katastralniuzemiL);
+
 
     /**
      * parameters used ib spatialIndexLoader (make request on server from this parameters)
@@ -152,7 +187,9 @@ goog.require('ol.Overlay');
       },
       layers: {
         obce: obceSource,
-        okresy: okresySource
+        okresy: okresySource,
+        kraje: krajeSource,
+        katastralniuzemi: katastralniuzemiSource
       }
     };
 

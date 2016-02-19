@@ -280,7 +280,7 @@ def generalizeLayer_obce_okresy():
 	level_properties = {'geometry_8': '1', 'geometry_9': '1.5', 'geometry_10': '2.7', 'geometry_11': '4', 'geometry_12': '5', 'geometry_13': '7', 'geometry_14': '10', 'geometry_15': '20', 'geometry_16': '25', 'geometry_17': '30', 'geometry_18': '40', 'geometry_19': '50', 'geometry_20': '60'}
 	deleteGeomCollumns('obce', level_properties)
 	deleteGeomCollumns('okresy', level_properties)
-	generalizationMultipleTable(['obce','okresy'], level_properties)
+	generalizationMultipleTable(['obce','okresy', 'kraje', 'katastralniuzemi'], level_properties)
 
 #generalize layers
 print "generalizeLayer_parcely"
