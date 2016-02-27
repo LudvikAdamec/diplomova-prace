@@ -52,7 +52,7 @@ vectorTileLoader = function(params) {
     that = this;
 
     this.format = 'topojson';
-    this.format = 'geojson';
+    //this.format = 'geojson';
 
     this.source;
 
@@ -86,15 +86,10 @@ vectorTileLoader.prototype.measureNextProperty = function () {
   timeStart = new Date();
   totalMergeTime = 0;
 
-  //factor - multiple size of current extent
   function panMap(factor, toSide) {
-    //[minX, minY, maxX, maxY]
     var currentExtent = map.getView().calculateExtent(map.getSize()); 
-    console.log(currentExtent);
     var currentCenter = map.getView().getCenter();
     var width = currentExtent[2] - currentExtent[0];
-
-    console.log("center: ", currentCenter, " width: ", width);
 
     if(toSide == 'left'){
       var newCenter = [currentCenter[0] - (factor * width), currentCenter[1]];
@@ -105,26 +100,51 @@ vectorTileLoader.prototype.measureNextProperty = function () {
     }
   }
 
+  function zoomin() {
+     map.getView().setZoom(map.getView().getZoom() + 1);
+  }
+
+  function zoomout() {
+    map.getView().setZoom(map.getView().getZoom() - 3);
+  }
+
+  function saveResultsToDB (){
+    var results = {};
+    for (var i = 0; i < measuringProperties.length; i++) {
+      results[measuringProperties[i]] = measuringResults[i];
+    }
+
+    $.ajax({
+      url: 'http://localhost:9001/saveStatToDB/',
+      type: "POST",
+      data: JSON.stringify({"results": results}),
+      contentType: 'application/json',
+      datatype: 'text/plain',  
+      error:function(er){
+        return console.log("chyba: ", er);
+      }   
+    });  
+  }
+
+  console.log(measuringResults);
   if(measuringResults.length == measuringProperties.length){
-    console.log(measuringResults);
+    saveResultsToDB();
   } else {
     switch (measuringResults.length){
-      case 0:
-        console.log("measure", measuringProperties[measuringResults.length]);
-        break;
       case 1:
-        setTimeout(function(){
-          map.getView().setZoom(map.getView().getZoom() + 1);
-        }, 2000);
+        zoomin();
         break;
       case 2:
-        setTimeout(panMap(1, 'left'), 2000);
+        panMap(1, 'left');
         break;
       case 3:
+        zoomin();
         break;
       case 4: 
+        zoomin();
         break;
       case 5:
+        zoomout();
         break;
     }
   }
@@ -255,6 +275,7 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
     mergingFinished = new Date();
     totalMergeTime += mergingFinished - mergingStarted;
     this_.logger.loadingStatusChange({"mergingTime": totalMergeTime});
+    this_.source.changed();
 
     measuringResults.push({
      loading: timeFinish - timeStart,
@@ -262,8 +283,6 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
     });
 
     this_.measureNextProperty();
-
-    this_.source.changed();
   }
 
   if(this_.loadingExtents < 1 && this_.mergeTool.featuresToMergeOnLevel[level] && this_.mergeTool.featuresToMergeOnLevel[level].length){

@@ -17,7 +17,9 @@ var pg = require('pg'),
   app = express(),
   fs = require("fs"),
   plovrVars = require('./../tasks/util/get-plovr-vars.js'),
-  plovrIds = plovrVars.plovrIds;
+  plovrIds = plovrVars.plovrIds,
+  bodyParser = require('body-parser')
+
 
 app.use('/client/src/', function(req, res, next) {
   var filePath = req.path;
@@ -702,6 +704,19 @@ app.get('/se/topojsonTile', function(req, res){
 });
 
 
+app.post('/saveStatToDB', bodyParser.json(), function (req, res) {
+  if (!req.body) return res.status(400).end();
+  var results_db = nano.db.use('topojson_measure_node_cache');
+
+  results_db.insert(req.body, function(err, body){
+    if(err){
+      return res.status(500).end();
+      console.log("errorr: ", err);
+    } else {
+      return res.status(200).end();
+    }
+  });
+});
 
 
 
