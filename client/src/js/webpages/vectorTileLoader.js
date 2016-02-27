@@ -51,6 +51,9 @@ vectorTileLoader = function(params) {
 
     that = this;
 
+    this.format = 'topojson';
+    this.format = 'geojson';
+
     this.source;
 
 
@@ -76,16 +79,69 @@ vectorTileLoader.prototype.geojsonFeatureToLayer = function(feature, layer) {
   layer.addFeature(olFeature);
 };
 
-    var totalTime = 0;  
-    var timeStart = 0;
-    var timeFinish = 0;
-    var mergingStarted = 0;
-    var mergingFinished = 0;
-    var totalMergeTime = 0;
+
+var measuringProperties = ['init', 'panLeft', 'zoomin', 'zoomin', 'zoomout3x'];
+var measuringResults = [];
+vectorTileLoader.prototype.measureNextProperty = function () {
+  timeStart = new Date();
+  totalMergeTime = 0;
+
+  //factor - multiple size of current extent
+  function panMap(factor, toSide) {
+    //[minX, minY, maxX, maxY]
+    var currentExtent = map.getView().calculateExtent(map.getSize()); 
+    console.log(currentExtent);
+    var currentCenter = map.getView().getCenter();
+    var width = currentExtent[2] - currentExtent[0];
+
+    console.log("center: ", currentCenter, " width: ", width);
+
+    if(toSide == 'left'){
+      var newCenter = [currentCenter[0] - (factor * width), currentCenter[1]];
+      map.getView().setCenter(newCenter);
+      console.log("moved");
+    } else {
+      throw "side not implemented";
+    }
+  }
+
+  if(measuringResults.length == measuringProperties.length){
+    console.log(measuringResults);
+  } else {
+    switch (measuringResults.length){
+      case 0:
+        console.log("measure", measuringProperties[measuringResults.length]);
+        break;
+      case 1:
+        setTimeout(function(){
+          map.getView().setZoom(map.getView().getZoom() + 1);
+        }, 2000);
+        break;
+      case 2:
+        setTimeout(panMap(1, 'left'), 2000);
+        break;
+      case 3:
+        break;
+      case 4: 
+        break;
+      case 5:
+        break;
+    }
+  }
+
+  // body...
+};
+
+var totalTime = 0;  
+var timeStart = new Date();
+var timeFinish = 0;
+var mergingStarted = 0;
+var mergingFinished = 0;
+var totalMergeTime = 0;
 
 vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease, message, zoom, this_){
   //this = this_;
-  var loadTopojsonFormat = false;
+  var loadTopojsonFormat = true;
 
   if(!level){
     level = this_.source.getLODforZ(zoom);
@@ -109,7 +165,7 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
     });
   
 
-  if(!loadTopojsonFormat){
+  if(this_.format != 'topojson'){
     if(this_.loadingExtents == 0){
       var contentSize = Math.round(this_.loadedContentSize * 100) / 100;
       console.log("contentSize:", contentSize);
@@ -125,7 +181,9 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
 
     }
 
-    // PODMINKA DODELAT i pro single layer
+    //VYMYSLET variantu i pro topojson
+
+    // REFACTOROVAT - PODMINKA DODELAT i pro single layer
     var aha = Object.keys(responseFeatures);
 
     for(var m = 0; m < aha.length; m++){
@@ -146,12 +204,16 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
     }
   } else {
     for (var j = 0; j < responseFeatures.objects.collection.geometries.length; j++) {
+
       var feature = responseFeatures.objects.collection.geometries[j];
 
+      if(!this_.vtLayerCache[feature.properties.layer]){
+        this_.vtLayerCache[feature.properties.layer] = [];
+      }
+
       var id = feature.properties.id;
-      if(this_.vtCache.indexOf(id) == -1){
-        this_.vtCache.push(id);
-        console.log(responseFeatures[j]);
+      if(this_.vtLayerCache[feature.properties.layer].indexOf(id) == -1){
+        this_.vtLayerCache[feature.properties.layer].push(id);
         var f = {
           type: "Feature",
           properties: feature.properties,
@@ -161,9 +223,11 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
           }
         };
         
-        this_.geojsonFeatureToLayer(f);
+        this_.geojsonFeatureToLayer(f, this_.layers[feature.properties.layer]);
       }     
     }
+
+     //TOPO TODO: kontrola jestli to takto muze zustat
     this_.mergeTool.addTopoJsonFeaturesOnLevel(responseFeatures, level);   
   }
 
@@ -187,10 +251,18 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
   if(this_.loadingExtents < 1 && this_.mergeTool.topojsonOnLevel[level] && this_.mergeTool.topojsonOnLevel[level].length){
     console.log("merge");
     mergingStarted = new Date();
-    this_.mergeTool.mergeTopojsons(this_.mergeCallback, level);
+    this_.mergeTool.mergeTopojsons(this_.mergeMultipleCallback, level, this_);
     mergingFinished = new Date();
     totalMergeTime += mergingFinished - mergingStarted;
-    loadingStatusChange({"mergingTime": totalMergeTime});
+    this_.logger.loadingStatusChange({"mergingTime": totalMergeTime});
+
+    measuringResults.push({
+     loading: timeFinish - timeStart,
+     merging: totalMergeTime 
+    });
+
+    this_.measureNextProperty();
+
     this_.source.changed();
   }
 
@@ -217,6 +289,11 @@ vectorTileLoader.prototype.mergeMultipleCallback = function(responseObject, that
       var olFeature = goog.array.find(olFeatures, function(f) {
         return f.get('id') === responseObject.feature.properties.id;
       });
+
+      if(!olFeature){
+        console.log(responseObject.feature.properties.id);
+      }
+
       goog.asserts.assert(!!olFeature);
       if(olFeature){
         
@@ -245,6 +322,7 @@ vectorTileLoader.prototype.mergeCallback = function(responseObject, that){
       var olFeature = goog.array.find(olFeatures, function(f) {
         return f.get('id') === responseObject.feature.properties.id;
       });
+
       goog.asserts.assert(!!olFeature);
       if(olFeature){
         
@@ -325,8 +403,16 @@ vectorTileLoader.prototype.load = function(extent, level, projection, callback, 
       }   
     });
   } else {
+    var url;
+
+    if(this_.format == 'topojson'){
+      url = 'http://localhost:9001/se/topojsonTile';
+    } else {
+       url = 'http://localhost:9001/se/renderTile';
+    }
+
     $.ajax({
-      url: 'http://localhost:9001/se/renderTile',
+      url: url,
       type: "get",
       data: dataXYZ,
       datatype: 'json',

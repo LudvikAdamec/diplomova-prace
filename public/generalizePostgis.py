@@ -34,7 +34,7 @@ def createSourceJson(fc, filename):
 
 def generalizeFeautureCollection(fc, percentage, filename):
 	#MAPSHAPER generalization
-	command = "mapshaper " + filepath + filename + filetype + " -simplify visvalingam keep-shapes " + percentage + "% -o " + filepath + filename  + "_" + percentage + filetype
+	command = "mapshaper " + filepath + filename + filetype + " -simplify visvalingam keep-shapes " + percentage + "% -o " + filepath + filename  + "_" + percentage + filetype + " -filter remove-empty "
 	os.system(command)
 
 	generalizedJson = ''
@@ -51,6 +51,8 @@ def deleteGeomCollumns(table, level_columns):
 		desiredCol = cursor.fetchone()
 		if desiredCol != None:
 			cursor.execute("""ALTER TABLE %s DROP COLUMN %s ;""", (AsIs(table), AsIs(col_name),));
+			indexName = table + "_" + col_name + "x"
+			cursor.execute("""DROP INDEX IF EXISTS %s;""", (AsIs(indexName),));
 			conn.commit()
 
 def addGeomCollumn(table, col_name):
@@ -62,6 +64,8 @@ def addGeomCollumn(table, col_name):
 	if desiredCol == None:
 		#cursor.execute("""ALTER TABLE %s DROP COLUMN %s ;""", (AsIs(table), AsIs(col_name),));
 		cursor.execute("""SELECT AddGeometryColumn('public',%s , %s ,4326,'geometry',2);""", (table, col_name,));
+		indexName = table + "_" + col_name + "x"
+		cursor.execute("""CREATE INDEX %s ON %s USING GIST(%s);""", (AsIs(indexName), AsIs(table), AsIs(col_name),));
 		conn.commit()
 
 def generalizationWholePostgisTable(table, level_properties):
@@ -157,7 +161,11 @@ def generalizeMultipleLayers(tables, feature_collection, level_columns, fileName
 					################################
 					# BREAK for real test need to be deleted
 					#break
-	#deleteTempFolder()
+	deleteTempFolder()
+	cursor = conn.cursor()
+	for table in tables:
+		cursor.execute("""VACUUM ANALYZE %s;""", (AsIs(table),));
+		conn.commit()
 
 def generalizePostgisTableByTable(table, byTable, level_properties):
 	cur = conn.cursor()
@@ -190,15 +198,56 @@ def generalizePostgisTableByTable(table, byTable, level_properties):
 			generalizeLayer(table, feature_collection, level_properties, str(ogc_fid))
 	cur.close()
 
+
+def generalizePostgisTableByAttr(table, attr, level_properties, inStatement):
+	cur = conn.cursor()
+	if(len(inStatement) > 0):
+		print inStatement
+		cur.execute("SELECT DISTINCT %s FROM %s WHERE %s in%s", (AsIs(attr), AsIs(table), AsIs(attr), AsIs(inStatement)) )
+	else:
+		cur.execute("SELECT DISTINCT %s FROM %s;", (AsIs(attr), AsIs(table)) )
+	
+
+	#cur.execute("SELECT DISTINCT %s FROM %s;", (AsIs(attr), AsIs(table)) )
+	print "pocet radku: " + str(cur.rowcount)
+	print cur
+	
+	for row in cur:
+		print row
+		feature_collection = createFeatureCollection()
+
+		curInner= conn.cursor()
+		attrVal = row[0]
+
+		query1 = """SELECT ogc_fid,  ST_AsGeoJSON(ST_Transform(originalnihranice, 4326)) AS geom 
+			FROM %s 
+			WHERE originalnihranice IS NOT NULL AND %s = %s"""
+
+		curInner.execute(query1, (AsIs(table), AsIs(attr), AsIs(attrVal)))
+
+		for innerRow in curInner:
+			jsonFeature = {}
+			jsonFeature['type'] = 'Feature'
+			jsonFeature['properties'] = {}
+			jsonFeature['properties']['ogc_fid'] = innerRow[0]
+			jsonFeature['geometry'] = json.loads(innerRow[1])
+			if jsonFeature['geometry'] != 'null':
+				feature_collection['features'].append(jsonFeature)
+		
+		print len(feature_collection['features'])
+		if len(feature_collection['features']) > 0:
+			generalizeLayer(table, feature_collection, level_properties, str(attrVal))
+	cur.close()
+
 def generalizePostgisTableByBBOX(table, level_properties, bbox):
-	print "POZOR JE NASTAVEN LIMIT NA 10 000 PRVKU!!!!!!!!!!!!!!!!!!!!!!"
+	#print "POZOR JE NASTAVEN LIMIT NA 10 000 PRVKU!!!!!!!!!!!!!!!!!!!!!!"
 
 	#cur.execute("SELECT ogc_fid FROM %s WHERE obce.geometry_12&&ST_MakeEnvelope(bbox[0], bbox[1], bbox[2], bbox[3], 4326);", (AsIs(byTable), ))
 	cur = conn.cursor()
 	
 	query = """SELECT ogc_fid, ST_AsGeoJSON(ST_Transform(originalnihranice, 4326)) AS geom  
 		FROM %s 
-		WHERE originalnihranice IS NOT NULL AND %s.originalnihranice&&ST_MakeEnvelope(%s, %s, %s, %s, 5514) LIMIT 10000;"""
+		WHERE originalnihranice IS NOT NULL AND %s.originalnihranice&&ST_MakeEnvelope(%s, %s, %s, %s, 5514);"""
 
 	cur.execute(query, (AsIs(table), AsIs(table), AsIs(bbox[0]), AsIs(bbox[1]), AsIs(bbox[2]), AsIs(bbox[3]), ))
 	feature_collection = createFeatureCollection()
@@ -236,17 +285,22 @@ def generalizeLayer(layerName, feature_collection, level_columns, fileName):
 					jsonGeom = str(json.dumps(feature['geometry']))
 
 					ogc_fidentificator = str(feature['properties']['ogc_fid'])
-					feature['geometry']['crs'] = json.loads('{"type":"name","properties":{"name":"EPSG:4326"}}')
-					geom = json.dumps(feature['geometry'])
+					if(feature['geometry'] != None):
+						feature['geometry']['crs'] = json.loads('{"type":"name","properties":{"name":"EPSG:4326"}}')
+						geom = json.dumps(feature['geometry'])
 
-					cursorGeom.execute(""" UPDATE %s
-						SET %s = (SELECT ST_GeomFromGeoJSON(%s))
-						WHERE ogc_fid = %s;""", (AsIs(layerName), AsIs(geom_column), geom, ogc_fidentificator))
-					conn.commit()
+						cursorGeom.execute(""" UPDATE %s
+							SET %s = (SELECT ST_GeomFromGeoJSON(%s))
+							WHERE ogc_fid = %s;""", (AsIs(layerName), AsIs(geom_column), geom, ogc_fidentificator))
+						conn.commit()
 					################################
 					# BREAK for real test need to be deleted
 					#break
 	deleteTempFolder()
+	cursor = conn.cursor()
+	conn.set_isolation_level(0)
+	cursor.execute("""VACUUM ANALYZE %s;""", (AsIs(layerName),));
+	conn.commit()
 
 def generalizeLayer_parcely():
 	print "need to be implemented - brutal force is not solution :D"
@@ -271,7 +325,8 @@ def generalizeLayer_obce():
 	#generalizePostgisTableByTable('obce', 'kraje', level_properties)
 
 def generalizeLayer_okresy():
-	level_properties = {'geometry_6': '0.06', 'geometry_7': '0.15', 'geometry_8': '0.5', 'geometry_9': '1', 'geometry_10': '1.5', 'geometry_11': '2', 'geometry_12': '5', 'geometry_13': '15', 'geometry_14': '25', 'geometry_15': '35', 'geometry_16': '40', 'geometry_17': '50', 'geometry_18': '75'}
+	#level_properties = {'geometry_6': '0.06', 'geometry_7': '0.15', 'geometry_8': '0.5', 'geometry_9': '1', 'geometry_10': '1.5', 'geometry_11': '2', 'geometry_12': '5', 'geometry_13': '15', 'geometry_14': '25', 'geometry_15': '35', 'geometry_16': '40', 'geometry_17': '50', 'geometry_18': '75'}
+	level_properties = {'geometry_6': '0.06'}
 	deleteGeomCollumns('okresy', level_properties)
 	generalizationWholePostgisTable('okresy', level_properties)
 	#generalizePostgisTableByTable('okresy', 'kraje', level_properties)
@@ -281,6 +336,15 @@ def generalizeLayer_obce_okresy():
 	deleteGeomCollumns('obce', level_properties)
 	deleteGeomCollumns('okresy', level_properties)
 	generalizationMultipleTable(['obce','okresy', 'kraje', 'katastralniuzemi'], level_properties)
+
+def generalizeLayer_parcely_in_katastr():
+	level_properties = {'geometry_19': '80', 'geometry_20': '85'}
+	deleteGeomCollumns('parcely', level_properties)
+	inStatement = '(679895,660272,742236,604551,621226,611646,611701,611743,611778,611905,611565,655856,658201,712680,751910,795674,612553,610470,610542,610585,610771,610844,610887,611379,611484,677655,699055)'
+	generalizePostgisTableByAttr('parcely', 'katastralniuzemikod', level_properties, inStatement)
+	#generalizePostgisTableByAttr('parcely', 'katastralniuzemikod', {'geometry_17': '30'}, '(604551)')
+	#generalize/parcely_699055_30.json
+
 
 #generalize layers
 print "generalizeLayer_parcely"
@@ -295,10 +359,13 @@ print "generalizeLayer_okresy"
 #generalizeLayer_okresy()
 
 print "generalizeLayer_katastralni_uzemi"
-#generalizeLayer_katastralni_uzemi()
+generalizeLayer_katastralni_uzemi()
 
 print "generalizeLayer_obce_okresy"
 print generalizeLayer_obce_okresy()
+
+print "generalizeLayer_parcely_in_katastr"
+print generalizeLayer_parcely_in_katastr()
 
 
 

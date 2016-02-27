@@ -36,6 +36,9 @@ goog.require('ol.source.MultiLevelVector');
 
 goog.require('ol.Overlay');
 
+
+var map;
+
 /**
  * The main function.
  */
@@ -49,7 +52,7 @@ goog.require('ol.Overlay');
   
   var initZoom = 12;
 
-  var map = new ol.Map({
+  map = new ol.Map({
     layers: [],
     renderer: 'canvas',
     target: document.getElementById('map'),
@@ -166,11 +169,28 @@ goog.require('ol.Overlay');
         })
       })
     });
+
+    var parcelySource = new ol.source.MultiLevelVector({
+      view: map.getView()
+    });
+
+    var parcelyL = new ol.layer.Vector({
+      source: parcelySource,
+      //minResolution: 310,
+      maxResolution: 10,
+      style: new ol.style.Style({
+        stroke: new ol.style.Stroke({
+          color: 'black',
+          width: 0.2
+        })
+      })
+    });
     
     map.addLayer(krajeL);
     map.addLayer(okresyL);
     map.addLayer(obceL);
     map.addLayer(katastralniuzemiL);
+    map.addLayer(parcelyL);
 
 
     /**
@@ -189,7 +209,8 @@ goog.require('ol.Overlay');
         obce: obceSource,
         okresy: okresySource,
         kraje: krajeSource,
-        katastralniuzemi: katastralniuzemiSource
+        katastralniuzemi: katastralniuzemiSource,
+        parcely: parcelySource
       }
     };
 

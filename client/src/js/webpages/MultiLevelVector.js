@@ -338,6 +338,37 @@ ol.source.MultiLevelVector.prototype.getLODforRes = function(resolution){
 
 
 ol.source.MultiLevelVector.prototype.getLODforZ = function(z){
+        if(z >= 20){
+      } else if(z >= 20){
+        return 20;
+      } else if(z >= 19){
+        return 19;
+      } else if(z >= 18){
+        return 18;
+      } else if(z >= 17){
+        return 17;
+      } else if(z >= 16){
+        return 16;
+      } else if(z >= 15){
+        return 15;
+      } else if(z >= 14){
+        return 14;
+      } else if(z >= 13){
+        return 13;
+      } else if(z >= 12){
+        return 12;
+      } else if(z >= 11){
+        return 11;
+      } else if(z >= 10){
+        return 10;
+      } else if(z >= 9){
+        return 9;
+      } else if(z >= 8){
+        return 8;
+      } else if(z >= 7){
+        return 7;
+      }
+
   if(z >= 17){
     return 17;
   } else if(z >= 16){

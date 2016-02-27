@@ -3,16 +3,21 @@ require('../bower_components/closure-library/closure/goog/bootstrap/nodejs');
 goog.require('goog.array');
 goog.require('goog.string');  
 
-var pg = require('pg');
+var memwatch = require('memwatch-next');
 
-var grunt = require('grunt');
+memwatch.on('leak', function(info) {
+  console.log(info)
+});
 
-var express = require('express');
-var app = express();
-var fs = require("fs");
+//memwatch.on('stats', function(stats) {console.log(stats)});
 
-var plovrVars = require('./../tasks/util/get-plovr-vars.js');
-var plovrIds = plovrVars.plovrIds;
+var pg = require('pg'),
+  grunt = require('grunt'),
+  express = require('express'),
+  app = express(),
+  fs = require("fs"),
+  plovrVars = require('./../tasks/util/get-plovr-vars.js'),
+  plovrIds = plovrVars.plovrIds;
 
 app.use('/client/src/', function(req, res, next) {
   var filePath = req.path;
@@ -349,7 +354,6 @@ var topojson = require("topojson");
 
 var convertGeoToTopo = function (feature_collection) {
   //var topology = topojson.topology({collection: feature_collection, propertyTransform: function propertyTransform(feature) {return feature.properties;}});
-  //console.log(feature_collection);
   var topology = topojson.topology({collection: feature_collection},{"property-transform":function(object){return object.properties;}});
 
   return topology;
@@ -380,7 +384,7 @@ var existRowInDB = function(layerName, dbName, geomRow, callback){
   });
 };
 
-var getTile = function(extent, layerName, dbName, geomRow, idColumn, callback){
+var getTile = function(extent, layerName, dbName, geomRow, idColumn, callback, loadTopojsonFormat){
   //existRowInDB(layerName, dbName, geomRow);
   var extentConverted = extent.map(function (x) {
     return parseFloat(x, 10);
@@ -399,7 +403,7 @@ var getTile = function(extent, layerName, dbName, geomRow, idColumn, callback){
                   'FROM ' + layerName + ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop;
 
   queryString = ' SELECT ' + idColumn + ' AS id, ' +
-                  "ST_XMin(ST_Transform(geometry_9,3857)) AS minx, ST_YMin(ST_Transform(geometry_9, 3857)) AS miny, ST_XMax(ST_Transform(geometry_9, 3857)) AS maxx, ST_YMax(ST_Transform(geometry_9, 3857)) AS maxy, " +
+                  "ST_XMin(ST_Transform(" + geomRow + ",3857)) AS minx, ST_YMin(ST_Transform(" + geomRow + ", 3857)) AS miny, ST_XMax(ST_Transform(" + geomRow + ", 3857)) AS maxx, ST_YMax(ST_Transform(" + geomRow + ", 3857)) AS maxy, " +
 
                   'CASE WHEN ' + geomRow + ' @ ' + envelop + 
                     ' THEN ST_AsGeoJSON(' + geomRow + ', 6)' +
@@ -410,6 +414,7 @@ var getTile = function(extent, layerName, dbName, geomRow, idColumn, callback){
                     ' ELSE 0' +
                     ' END AS status ' +  
                   'FROM ' + layerName + ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop;
+  //console.log(queryString);
 
   var connectionString = "postgres://postgres:postgres@localhost/" + dbName;  
   
@@ -437,6 +442,10 @@ var getTile = function(extent, layerName, dbName, geomRow, idColumn, callback){
         },
         "geometry": JSON.parse(geom)
       };
+
+      if(loadTopojsonFormat){
+        jsonFeature.properties.layer = layerName;
+      }
 
       jsonFeature.properties['geomRow'] = geomRow;
       feature_collection.features.push(jsonFeature);
@@ -510,7 +519,14 @@ var tileCache = (function () {
     };
 
     tileCache.prototype.getGeomLODforZ = function(zoom){
-      if(zoom >= 17){
+      if(zoom >= 20){
+      } else if(zoom >= 20){
+        return 20;
+      } else if(zoom >= 19){
+        return 19;
+      } else if(zoom >= 18){
+        return 18;
+      } else if(zoom >= 17){
         return 17;
       } else if(zoom >= 16){
         return 16;
@@ -560,20 +576,40 @@ var tileCache = (function () {
     return tileCache;
 })();
 
-var loadTopojsonFormat = false;
-
 var nano = require('nano')('http://localhost:5984');
-//var test_db = nano.db.use('topo_db');
-var test_db = nano.db.use('new_db');
 
+var renderTile = function(req, res, loadTopojsonFormat){
 
-/*
- * Request example: http://localhost:9001/se/renderTile?x=1&y=2&z=3
- */
-app.get('/se/renderTile', function(req, res){
+  var test_db;
+  if(loadTopojsonFormat){
+    test_db = nano.db.use('topo_multi_db');
+  } else {
+    test_db = nano.db.use('geo_multi_db');
+  }
+  var existRowCallback = function(exist, layerName){
+    if(exist){
+      getTile([bound[1], bound[0], bound[3], bound[2]], layerName, 'vfr_instalace2',  'geometry_' + cache.getGeomLODforZ(xyz.z), 'ogc_fid', callback, loadTopojsonFormat);
+    } else {
+      layersToLoad--;
+      if(layersToLoad == 0){
+        res.json({ "xyz" : xyz, 'json': resObject, 'bound': bound});
+      }
+    }
+  }
+
   //console.log(req);
   var layersToLoad = 0;
-  var resObject = {};
+  var resObject;
+
+  if(loadTopojsonFormat){
+    var resObject = {
+      "type": "FeatureCollection",
+        "features": []
+    };
+    //resObject = [];
+  } else {
+    resObject = {};
+  }
   
   var xyz = {
     'x': parseInt(req.param('x'), 10),
@@ -596,7 +632,7 @@ app.get('/se/renderTile', function(req, res){
         res.json({ "xyz" : xyz, 'json': body.FeatureCollection, 'bound': bound});
       } else {
         console.log("renderTile - ", id);
-        var layers = ['obce', 'okresy', 'kraje', 'katastralniuzemi'];
+        var layers = ['obce', 'okresy', 'kraje', 'katastralniuzemi', 'parcely'];
         for (var i = 0; i < layers.length; i++) {
           layersToLoad++;
           existRowInDB(layers[i], 'vfr_instalace2', 'geometry_' + cache.getGeomLODforZ(xyz.z), existRowCallback);
@@ -604,21 +640,11 @@ app.get('/se/renderTile', function(req, res){
       }
     });
   } else {
-    var layers = ['obce', 'okresy', 'kraje', 'katastralniuzemi'];
+    var layers = ['obce', 'okresy', 'kraje', 'katastralniuzemi', 'parcely'];
     for (var i = 0; i < layers.length; i++) {
       layersToLoad++;
-      getTile([bound[1], bound[0], bound[3], bound[2]], layers[i], 'vfr_instalace2',  'geometry_' + cache.getGeomLODforZ(xyz.z), 'ogc_fid', callback);
-    }
-  }
-
-  var existRowCallback = function(exist, layerName){
-    if(exist){
-      getTile([bound[1], bound[0], bound[3], bound[2]], layerName, 'vfr_instalace2',  'geometry_' + cache.getGeomLODforZ(xyz.z), 'ogc_fid', callback);
-    } else {
-      layersToLoad--;
-      if(layersToLoad == 0){
-        res.json({ "xyz" : xyz, 'json': resObject, 'bound': bound});
-      }
+      existRowInDB(layers[i], 'vfr_instalace2', 'geometry_' + cache.getGeomLODforZ(xyz.z), existRowCallback);
+      //getTile([bound[1], bound[0], bound[3], bound[2]], layers[i], 'vfr_instalace2',  'geometry_' + cache.getGeomLODforZ(xyz.z), 'ogc_fid', callback, loadTopojsonFormat);
     }
   }
 
@@ -627,15 +653,21 @@ app.get('/se/renderTile', function(req, res){
     var fCount = feature_collection.features.length;
     var jsonData = feature_collection;
 
-    resObject[layerName] = jsonData;
+    //TOPO TODO: predelat na jedno pole a dat vsechny features do nej
+    //UDELAT konverzi do topojsonu
     
     if(loadTopojsonFormat){
-      jsonData = convertGeoToTopo(feature_collection);
+      resObject.features = resObject.features.concat(jsonData.features);
+    } else {
+      resObject[layerName] = jsonData;
     }
 
     //console.log(resObject);
 
     if(layersToLoad == 0){
+      if(loadTopojsonFormat){
+        resObject = convertGeoToTopo(resObject);
+      }
       res.json({ "xyz" : xyz, 'json': resObject, 'bound': bound});
     }
 
@@ -652,7 +684,24 @@ app.get('/se/renderTile', function(req, res){
       });
     }
   };
+};
+
+/*
+ * Request example: http://localhost:9001/se/renderTile?x=1&y=2&z=3
+ */
+app.get('/se/renderTile', function(req, res){
+  renderTile(req, res, false);
 });
+
+
+/*
+ * Request example: http://localhost:9001/se/renderTile?x=1&y=2&z=3
+ */
+app.get('/se/topojsonTile', function(req, res){
+  renderTile(req, res, true);
+});
+
+
 
 
 

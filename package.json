@@ -32,6 +32,7 @@
     "devstack"
   ],
   "dependencies": {
+    "memwatch-next": "^0.2.10",
     "nano": "^6.2.0"
   }
 }

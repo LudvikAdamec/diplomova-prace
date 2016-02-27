@@ -88,7 +88,8 @@ mergeTools.prototype.mergeTopojsons = function(callback, level, that){
   for (var i = 0; i < this.topojsonOnLevel[level].length; i++) {
       var features = topojson.feature(this.topojsonOnLevel[level][i], this.topojsonOnLevel[level][i].objects.collection);
       for (var j = 0; j < features.features.length; j++) {
-        this.addFeaturesOnLevel(features.features[j], level);
+        this.addFeaturesOnLevelInLayer(features.features[j], level, features.features[j].properties.layer);  
+        //this.addFeaturesOnLevel(features.features[j], level);
       }
       //this.featuresToMergeOnLevel[level] = this.featuresToMergeOnLevel[level].concat(features.features);
   }

@@ -45,6 +45,7 @@ VECTOR TILING
 
 Nasledny postup
 - predpocitat plochu pro feature
+	- OPRAVIT VYBER DAT PRO TILE - PODMINKA pomoco && neni dostatecna (nezarucuje 100% prunik)
 - zkusit udelat cache
 	- zkusit implementovat topojson
 	
@@ -55,11 +56,15 @@ Nasledny postup
 - vytvoreni finalni aplikace s vice vrstvami i symbologii
 - renderovani relikt pri generalizaci - otestovat globalni algoritmus
 
+- upravit podminku pro merge - loading extents - jestli nepujde nejak zmenit ne mene nez 10 ale ne mene nez 10 na LOD (nutne resit dohromady s paralelnim zpracovanim requestu)
+- mergeTwoFeatures bug - assert se podela a od te doby uz nemerguje na levelu spravne
 
 
 
 
+- otestovani zobrazeni bez Mergovani - http://gis.stackexchange.com/questions/71327/how-to-merge-topojson-features
 
+- mergovani topojsonu - http://bl.ocks.org/mbostock/5416405 - v kombinaci s vice vrstvami se to mozna hodne zefektivni a az nasledne konvertovat
 
 
 
