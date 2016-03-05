@@ -49,6 +49,8 @@ vectorTileLoader = function(params) {
       "featureFormat": this.geojsonFormat
     });
 
+
+    //DBEUG toto asi neni uplne spravne....zrejme to udela globalni promennou
     that = this;
 
     this.format = 'topojson';

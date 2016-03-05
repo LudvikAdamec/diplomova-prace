@@ -1,9 +1,11 @@
 'use strict';
 goog.provide('spatialIndexLoader');
 
+goog.require('ol.source.MultiLevelVector');
 goog.require('ol.proj');
 goog.require('goog.asserts');
 goog.require('goog.array');
+
 
 /**
  * [spatialIndexLoader description]
@@ -19,6 +21,10 @@ spatialIndexLoader = function(params) {
     this.geomRow = dbParams.geomColumn;
     this.idColumn = dbParams.idColumn;
 
+    this.tileGrid = ol.tilegrid.createXYZ({
+      tileSize: 256
+    });
+
     this.loadedContentSize = 0;
 
     this.cacheIdByLevel = {};
@@ -30,7 +36,24 @@ spatialIndexLoader = function(params) {
     this.loaderFunctionCount = 0;
     this.loadGeometriesCount = 0;
     this.loadFeaturesCount = 0;
+
+    this.logger = new logInfo();
+    this.loadingExtents = 0;
+
+    this.timeFinish = 0;
+    this.timeStart = 0;
+
+    this.geojsonFormat = new ol.format.GeoJSON({
+      defaultDataProjection: 'EPSG:4326'
+    });
+
+    this.original_features_store = [];
+
+    this.mergeTool = new mergeTools({
+      "featureFormat": this.geojsonFormat
+    });
 }
+
 
 /**
  * loader fuction make request on server for getting Identificators for features in extent
@@ -41,7 +64,19 @@ spatialIndexLoader = function(params) {
  * @param  {Function} callback   [description]
  * @return {[type]}              [description]
  */
-spatialIndexLoader.prototype.loaderFunction = function(extent, level, projection, callback) {
+spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, projection, targetSource /* todo callback*/) {
+  if(this.loadingExtents == 0){
+    this.timeStart = new Date();
+    console.log('timeStart');
+  }
+
+  this.loadingExtents++;
+
+  this.logger.loadingStatusChange({"statusMessage": 'loading <i class="fa fa-spinner fa-spin"></i>'});
+
+  var zoom = this.tileGrid.getZForResolution(resolution);
+  var level = ol.source.MultiLevelVector.prototype.getLODforZ(zoom);
+
   this.loaderFunctionCount++;
   var this_ = this;
   var a = ol.proj.toLonLat([extent[0], extent[1]]);
@@ -71,21 +106,146 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, level, projection
     success: function(data){
       this_.loaderFunctionCount--;
       this_.loaderSuccess(data, function(responseFeatures, level, decrease){
-        callback(responseFeatures, level, decrease, "DF_ID");
+        this_.callback(responseFeatures, level, decrease, "DF_ID", targetSource);
       });
     },
     error:function(er){
-      callback([]);
+      this_.callback([]);
       return console.log("chyba: ", er);
     }   
   }); 
-
 };
+
+
+spatialIndexLoader.prototype.callback = function(responseFeatures, level, decrease, message, source){
+  if(decrease){
+    this.loadingExtents--;
+  }
+
+  if (this.loadingExtents == 0) {
+    this.timeFinish = new Date();
+
+  };
+
+  this.logger.loadingStatusChange({
+    "statusExtents": this.loadingExtents, 
+    "loadingTime": new Date() - this.timeStart
+  });
+
+  //prenest do samostatne fce
+  if(this.loadingExtents == 0){
+    var contentSize = Math.round(this.loadedContentSize * 100) / 100;
+    this.logger.loadingStatusChange({
+      "statusMessage": 'extent loaded <i class="fa fa-check"></i>', 
+      "sizeMessage": contentSize + 'mb'
+    });
+
+    this.logger.loadingStatusChange({
+      "statusExtents": this.loadingExtents,
+      "loadingTime": this.timeFinish - this.timeStart
+    });
+  }
+
+  for (var j = 0; j < responseFeatures.length; j++) {
+    if(decrease){
+      this.geojsonFeatureToLayer(responseFeatures[j], source, level);
+    } else {
+      if(responseFeatures[j].properties.original_geom){
+        this.original_features_store.push(responseFeatures[j]);
+        if(this.loaderFunctionCount == 0 && 
+          this.loadGeometriesCount < 7 && 
+          this.loadFeaturesCount == 0 ){
+          this.loadStoredFeatures(source);
+        }
+      } else {
+        this.mergeTool.addFeaturesOnLevel(responseFeatures[j], level);
+        if(this.loaderFunctionCount == 0 && 
+          this.loadGeometriesCount < 7 && 
+          this.loadFeaturesCount == 0 && 
+          this.mergeTool.featuresToMergeOnLevel[level].length
+        ){
+          //console.log("pocet k merge:", this.mergeTool.featuresToMergeOnLevel[level].length);
+        //if(this.loadingExtents == 0 && this.mergeTool.featuresToMergeOnLevel[level].length){
+          console.log("merge");
+          this.logger.loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
+          mergingStarted = new Date();
+          this.mergeTool.merge(this.mergeCallback, level, source);
+          mergingFinished = new Date();
+          totalMergeTime += mergingFinished - mergingStarted;
+          
+          this.logger.loadingStatusChange({
+            "mergingTime": totalMergeTime,
+            "statusMessage": '<i class="fa fa-check"></i>'
+          });
+
+          source.changed();
+        }
+      }
+
+    }
+
+  }
+};
+
+
+spatialIndexLoader.prototype.mergeCallback = function(responseObject, source){
+  if(responseObject.mergingFinished){
+    /*this.logger.loadingStatusChange({"statusMessage": '<i class="fa fa-check"></i>'});
+    mergingFinished = new Date();
+    this.logger.loadingStatusChange({"mergingTime": totalMergeTime});*/
+  } else {
+      var olFeatures = source.getFeatures();
+      var olFeature = goog.array.find(olFeatures, function(f) {
+        return f.get('id') === responseObject.feature.properties.id;
+      });
+      goog.asserts.assert(!!olFeature);
+      if(olFeature){
+        
+        //funcionality for decreasing count of setgeometry on feature
+        var active_geom = olFeature.get('active_geom');
+        if(active_geom === responseObject.feature.properties.geomRow){
+          olFeature.setGeometry(responseObject.geometry);
+        }
+        
+        olFeature.set(responseObject.feature.properties.geomRow, responseObject.geometry);
+      }
+  }
+};
+
+spatialIndexLoader.prototype.geojsonFeatureToLayer = function(feature, layer) {
+  var olFeature =  this.geojsonFormat.readFeature(feature, {featureProjection: 'EPSG:3857'});
+  layer.addFeature(olFeature);
+};
+
+
+spatialIndexLoader.prototype.loadStoredFeatures = function(source) {
+  for (var j = 0; j < this.original_features_store.length; j++) {
+    var olFeatures = source.getFeatures();
+    var this_ = this;
+    var olFeature = goog.array.find(olFeatures, function(f) {
+      return f.get('id') === this_.original_features_store[j].properties.id;
+    });
+
+    if(olFeature){
+      var olFeatureee =  this.geojsonFormat.readFeature(this.original_features_store[j], {featureProjection: 'EPSG:3857'});
+      var testGe = this.geojsonFormat.readGeometry(this.original_features_store[j].geometry, {featureProjection: 'EPSG:3857'}); 
+      var newGeometry = olFeatureee.getGeometry();
+      olFeature.set(this.original_features_store[j].properties.geomRow, testGe);
+    }
+  };
+
+  this.original_features_store = [];
+  source.changed();
+};
+
+
+
 
 spatialIndexLoader.prototype.loadGeometries = function(idToDownload, level, extent, callback, this_) {
   this.loadGeometriesCount++;
   var stringIds = "";
   var ids = idToDownload.features.concat(idToDownload.geometries);
+ 
   for (var i = 0; i < ids.length; i++) {
     if(i == 0){
       stringIds += " '" + ids[i] + "'";
@@ -93,7 +253,6 @@ spatialIndexLoader.prototype.loadGeometries = function(idToDownload, level, exte
       stringIds += ", '" + ids[i] + "'";
     }
   }
-
 
   var this_ = this;
   $.ajax({
@@ -121,6 +280,7 @@ spatialIndexLoader.prototype.loadGeometries = function(idToDownload, level, exte
       console.log("chyba: ", er);
     }   
   });
+
 };
 
 spatialIndexLoader.prototype.loadFeatures = function(idToDownload, level, extent, callback, this_) {
@@ -133,7 +293,6 @@ spatialIndexLoader.prototype.loadFeatures = function(idToDownload, level, extent
       stringIds += ", '" + idToDownload.features[i] + "'";
     }
   }
-
 
   var this_ = this;
   $.ajax({
@@ -206,25 +365,10 @@ spatialIndexLoader.prototype.loaderSuccess = function(data, callback){
  */
 spatialIndexLoader.prototype.selectIdToDownload = function(ids, level){
   var keys = Object.keys(ids);
-  
   if(keys.length == 0){
     return false;
   }
-  
   var idsNotInCache = this.selectNotCachedId(keys, level);
-
-  /*for (var i = 0; i < keys.length; i++) {
-    if(ids[keys[i]]){
-      if(idsNotInCache.features.indexOf(keys[i]) == -1){
-        //console.log(idsNotInCache.features);
-        //idsNotInCache.features.push(keys[i]);
-        //idsNotInCache.features.push([keys[i]]);
-        //console.log(idsNotInCache.features);
-      }
-    } 
-
-  };*/
-
   return idsNotInCache;
 };
 
