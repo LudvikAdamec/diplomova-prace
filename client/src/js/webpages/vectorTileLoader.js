@@ -52,7 +52,7 @@ vectorTileLoader = function(params) {
     that = this;
 
     this.format = 'topojson';
-    //this.format = 'geojson';
+    this.format = 'geojson';
 
     this.source;
 
@@ -120,6 +120,9 @@ vectorTileLoader.prototype.measureNextProperty = function () {
       data: JSON.stringify({"results": results}),
       contentType: 'application/json',
       datatype: 'text/plain',  
+      success: function(){
+        //location.reload();
+      },
       error:function(er){
         return console.log("chyba: ", er);
       }   
@@ -127,28 +130,29 @@ vectorTileLoader.prototype.measureNextProperty = function () {
   }
 
   console.log(measuringResults);
-  if(measuringResults.length == measuringProperties.length){
-    saveResultsToDB();
-  } else {
-    switch (measuringResults.length){
-      case 1:
-        zoomin();
-        break;
-      case 2:
-        panMap(1, 'left');
-        break;
-      case 3:
-        zoomin();
-        break;
-      case 4: 
-        zoomin();
-        break;
-      case 5:
-        zoomout();
-        break;
+  if(true == false){
+    if(measuringResults.length == measuringProperties.length){
+      saveResultsToDB();
+    } else {
+      switch (measuringResults.length){
+        case 1:
+          zoomin();
+          break;
+        case 2:
+          panMap(1, 'left');
+          break;
+        case 3:
+          zoomin();
+          break;
+        case 4: 
+          zoomin();
+          break;
+        case 5:
+          zoomout();
+          break;
+      }
     }
   }
-
   // body...
 };
 
@@ -159,30 +163,47 @@ var mergingStarted = 0;
 var mergingFinished = 0;
 var totalMergeTime = 0;
 
-vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease, message, zoom, this_){
-  //this = this_;
-  var loadTopojsonFormat = true;
+var lastLoadingExtents;
 
+var fromLastLoading;
+
+var restartTimer;
+function startTimer() {
+    restartTimer = setTimeout(function(){ location.reload(); }, 30000);
+}
+function stopTimer() {
+    clearTimeout(restartTimer);
+}
+
+vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease, message, zoom, this_){
+  stopTimer();
+  startTimer();
   if(!level){
     level = this_.source.getLODforZ(zoom);
   }
 
   this_.loadingExtents--;
 
+  if(this_.loadingExtents > 1){
+    if(fromLastLoading) {
+      if(fromLastLoading - new Date() > 20000){
+        location.reload();
+      }
+    }
+    fromLastLoading = new Date();
+  }
+
+
   if (this_.loadingExtents == 0) {
       timeFinish = new Date();
-
   };
 
+  var contentSize = Math.round(this_.loadedContentSize * 100) / 100;
   this_.logger.loadingStatusChange({
     "statusExtents": this_.loadingExtents, 
-    "loadingTime": new Date() - timeStart
+    "loadingTime": new Date() - timeStart,
+    "sizeMessage": contentSize + 'mb'
   });
-
-  var contentSize = Math.round(this_.loadedContentSize * 100) / 100;
-    this_.logger.loadingStatusChange({
-      "sizeMessage": contentSize + 'mb'
-    });
   
 
   if(this_.format != 'topojson'){
@@ -200,8 +221,6 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
       });
 
     }
-
-    //VYMYSLET variantu i pro topojson
 
     // REFACTOROVAT - PODMINKA DODELAT i pro single layer
     var aha = Object.keys(responseFeatures);
@@ -251,7 +270,13 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
     this_.mergeTool.addTopoJsonFeaturesOnLevel(responseFeatures, level);   
   }
 
-  if(this_.loadingExtents < 10){
+  if(lastLoadingExtents != undefined && lastLoadingExtents != 0 && this_.loadingExtents < lastLoadingExtents){
+    return 0;
+  }
+
+  //MULTIPLE LAYERS in tile - geojson
+  if(this_.loadingExtents < 5){
+    lastLoadingExtents = this_.loadingExtents;
     if(this_.mergeTool.featuresToMergeOnLevelInLayer[level]){
       var layers = Object.keys(this_.mergeTool.featuresToMergeOnLevelInLayer[level]);
       for (var n = 0; n < layers.length; n++) {
@@ -265,10 +290,19 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
           break;
         }
       }
+  
+      measuringResults.push({
+       loading: mergingStarted - timeStart,
+       merging: totalMergeTime 
+      });
+
+      this_.measureNextProperty();
     }
   }  
 
-  if(this_.loadingExtents < 1 && this_.mergeTool.topojsonOnLevel[level] && this_.mergeTool.topojsonOnLevel[level].length){
+  //SINGLE and MULTIPLE LAYERS in tile - topojson
+  if(this_.loadingExtents < 5 && this_.mergeTool.topojsonOnLevel[level] && this_.mergeTool.topojsonOnLevel[level].length){
+    lastLoadingExtents = this_.loadingExtents;
     console.log("merge");
     mergingStarted = new Date();
     this_.mergeTool.mergeTopojsons(this_.mergeMultipleCallback, level, this_);
@@ -278,13 +312,14 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
     this_.source.changed();
 
     measuringResults.push({
-     loading: timeFinish - timeStart,
+     loading: mergingStarted - timeStart,
      merging: totalMergeTime 
     });
 
     this_.measureNextProperty();
   }
 
+  //SINGLE LAYER in tile - geojson
   if(this_.loadingExtents < 1 && this_.mergeTool.featuresToMergeOnLevel[level] && this_.mergeTool.featuresToMergeOnLevel[level].length){
     console.log("merge");
     mergingStarted = new Date();

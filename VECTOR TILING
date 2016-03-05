@@ -46,72 +46,23 @@ VECTOR TILING
 Nasledny postup
 - predpocitat plochu pro feature
 	- OPRAVIT VYBER DAT PRO TILE - PODMINKA pomoco && neni dostatecna (nezarucuje 100% prunik)
-- zkusit udelat cache
-	- zkusit implementovat topojson
+
 	
-- udelat automatizovane mereni parametru s ukladanim
-- vymyslet mechanizmus vyhodnoceni plynulosti UI
+- mereni MB prenesenych dat
 - REFACTORING
 - priprava pro vice vrstev
 - vytvoreni finalni aplikace s vice vrstvami i symbologii
-- renderovani relikt pri generalizaci - otestovat globalni algoritmus
-
-- upravit podminku pro merge - loading extents - jestli nepujde nejak zmenit ne mene nez 10 ale ne mene nez 10 na LOD (nutne resit dohromady s paralelnim zpracovanim requestu)
-- mergeTwoFeatures bug - assert se podela a od te doby uz nemerguje na levelu spravne
-
-
-
-
-- otestovani zobrazeni bez Mergovani - http://gis.stackexchange.com/questions/71327/how-to-merge-topojson-features
-
-- mergovani topojsonu - http://bl.ocks.org/mbostock/5416405 - v kombinaci s vice vrstvami se to mozna hodne zefektivni a az nasledne konvertovat
-
-
-
-
-
 
 REFACTORING AND MULTIPLE LAYERS
-
-Multiple layers
-- geojsonFeatureToLayer - vectorSource jako param
-- promyslet udelani jedne vrstvy, ktera by nemela data ale fungovala jako jediny loader pro vsechny ostatni vrstvy aplikace
-	- jak resit v jakem zoomu je ktera vrstva platna
-
-
-Topojson
-new mergeTools({
-	"featureFormat": dodelan topojson format
-}); - asi to neomezovat...musi to zvladat ruzne zdroje zaroven
-
+- udelat IndexLoader podle VTloaderu
 
 
 index,js mit jako konfiguracni soubor defacto
 - nemelo by v nem byt moc business logiky
 - konfiguracni JSON 
 	- seznam vrstev s konfigurakem do DB a referenci na ol3 vrstvu
-	
-- cast prenest do loaderu 
-	- mergeTool
-	- callback 
-	- mergecallback
-	- funkcionalitu loadingStatusChange prostrednictvim noveho modulu
-		- ten by mel fungovat jako rozhrani - v kazem loaderu bude jedna instance
 
 
 
-
-
-mergeCallback
-- presunout do mergetools
-- nutno udelat module loadingStatusChange asi
-- parametrizovat: 
-	- object vector
-
-- loadingStatusChange
-	- prejmenovat a predelat do modulu
-
-
-
-
-- smazat tu cas s tilevector source
+- otestovani zobrazeni bez Mergovani - http://gis.stackexchange.com/questions/71327/how-to-merge-topojson-features
+- mergovani topojsonu - http://bl.ocks.org/mbostock/5416405 - v kombinaci s vice vrstvami se to mozna hodne zefektivni a az nasledne konvertovat
