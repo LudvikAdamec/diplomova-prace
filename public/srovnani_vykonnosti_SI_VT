@@ -1,0 +1,184 @@
+zoom 10 init
+SI
+- init
+	- 821 requests
+	- 2.17mb
+	- loading - 3093, 2922, 2971, 2908
+- zoomin
+	- 1024 requests
+	- 7.48 mb
+ 	- loading - 2597, 3122, 3250
+- zoomout
+	- 962
+	- 3.9 mb
+	- loading - 1954, 2035, 1927
+
+VT
+- init
+	- 781 requests
+	- 1.67 mb
+	- loading - 1976, 2118, 2018 
+	- merging - 1546, 1357, 1527
+- zoomin
+	- 916 requests
+	- 4.79 mb
+ 	- loading - 1834, 1916, 1948
+ 	- merging - 3087, 2829, 2659
+- zoomout
+	- 918 request
+	- 3.25 mb
+	- loading - 1495, 1407, 1441, 1373
+	- merging - 3897, 3574, 2731, 2739
+
+
+
+
+ANALYZOVAT MERGE - respektvie SI callback aby nemusel jit do merge
+
+Critical area = 2x tile area
+zoom 13 init
+SI
+- init
+	- 799 requests
+	- 11.13 mb
+	- loading - 5010, 5297, 4986, 4686
+		- pokazde loading - 
+	- merging - 951, 1046, 1082, 716, 
+		- pokazde - 
+- zoomin
+	- 1105 requests
+	- 12.39 mb
+ 	- loading - 2967, 3100, 2876
+ 		- pokazde - 
+ 	- merging - 1919, 1974, 1986
+ 		- pokazde - 
+- zoomout
+	- 1523 request
+	- 19.6 mb
+	- loading - 4361, 4216, 4238
+	- merging - 1136, 1129, 909
+
+
+
+
+
+VT
+- init
+	- 492 requests
+	- 2.83 mb
+	- loading - zaroven - 2542, 2405, 2472 
+		- pokazde - 5566, 5732, 5980
+	- merging - 2071, 2001, 2289
+		- pokazde - 4351, 4441, 4685
+- zoomin
+	- 630 requests
+	- 3.71 mb
+ 	- loading - 1979, 1962, 2000
+ 		- pokazde - 2956, 3202, 2986
+ 	- merging - 3486, 2891, 3173
+ 		- pokazde - 6573, 6935, 6468
+- zoomout
+	- 676 request
+	- 6.5 mb
+	- loading - 2284, 2313, 2224
+		- pokazde - 4930, 4826, 5017
+	- merging - 3619, 3598, 3596
+		- pokazde - 7967, 7909, 8363
+
+
+
+
+
+
+
+
+
+
+
+
+
+NEPLATNE
+SI
+- init
+	-  requests
+	-  mb
+	- loading - 
+		- pokazde loading - 
+	- merging -
+		- pokazde - 
+- zoomin
+	-  requests
+	-  mb
+ 	- loading - 
+ 		- pokazde - 
+ 	- merging - 
+ 		- pokazde - 
+- zoomout
+	-  request
+	-  mb
+	- loading - 
+		- pokazde - 
+	- merging - 
+		- pokazde -
+
+
+- extent critical area = 1x plocha tile
+SI
+- init
+	- 756 requests
+	- 6.46 mb
+	- loading - 4276, 4267, 4405, 4407, 4236, 4466
+		- pokazde loading - 10515, 11535, 12536
+	- merging - 6196, 6090, 4550, 6046, 6227, 4405
+		- pokazde - 6773, 7342, 8813
+- zoomin
+	- 1062 requests
+	- 7.31 mb
+ 	- loading - 2834, 2884, 3021, 2848, 2725
+ 		- pokazde - 4045, 4400, 4649
+ 	- merging - 7817, 7178, 5611, 7021, 7238
+ 		- pokazde - 8561, 9817, 11267
+- zoomout
+	- 1128 request
+	- 14.3 mb
+	- loading - 3918, 3950, 
+		- pokazde - 9613, 9766
+	- merging - 12191, 12432, 
+		- pokazde - 13614, 13298
+
+
+- extent critical area = 2x plocha tile
+SI
+- init
+	- 728 requests
+	- 11.1 mb
+	- loading - 4732, 4990, 4883, 4712, 4714
+	- merging - 11737, 11650, 10102, 7901, 7553
+- zoomin
+	- 1034 requests
+	- 12.35 mb
+ 	- loading - 3107, 3038
+ 	- merging - 13425, 13368
+- zoomout
+	- 1076 request
+	- 19.48 mb
+	- loading - 3770, 3658, 
+	- merging - 12807, 12364, 
+
+- extent critical area = 6x plocha tile
+SI
+- init
+	- 728 requests
+	- 12.13 mb
+	- loading - 5257, 4983,
+	- merging - 8406, 8986, 
+- zoomin
+	- 1034 requests
+	- 17.65 mb
+ 	- loading - 3350, 
+ 	- merging - 13223, 
+- zoomout
+	- 1076 request
+	- 19.48 mb
+	- loading - 
+	- merging - 

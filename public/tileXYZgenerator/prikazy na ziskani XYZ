@@ -1,0 +1,20 @@
+ python globalmaptiles.py 1 48.5394 12.0568 51.0683 18.8931 >> z10.py
+ python globalmaptiles.py 2 48.5394 12.0568 51.0683 18.8931 >> z10.py
+ python globalmaptiles.py 3 48.5394 12.0568 51.0683 18.8931 >> z10.py
+ python globalmaptiles.py 4 48.5394 12.0568 51.0683 18.8931 >> z10.py
+ python globalmaptiles.py 5 48.5394 12.0568 51.0683 18.8931 >> z10.py
+ python globalmaptiles.py 6 48.5394 12.0568 51.0683 18.8931 >> z10.py
+ python globalmaptiles.py 7 48.5394 12.0568 51.0683 18.8931 >> z10.py
+ python globalmaptiles.py 8 48.5394 12.0568 51.0683 18.8931 >> z10.py
+ python globalmaptiles.py 9 48.5394 12.0568 51.0683 18.8931 >> z10.py
+ python globalmaptiles.py 10 48.5394 12.0568 51.0683 18.8931 >> z10.py
+ python globalmaptiles.py 11 48.5394 12.0568 51.0683 18.8931 >> z10.py
+ python globalmaptiles.py 12 48.5394 12.0568 51.0683 18.8931 >> z10.py
+ python globalmaptiles.py 13 48.274 15.601 49.904 17.889 >> z10.py
+
+ python globalmaptiles.py 14 49.096 16.430 49.312 16.757 >> z10.py
+ python globalmaptiles.py 15 49.096 16.430 49.312 16.757 >> z10.py
+ python globalmaptiles.py 16 49.096 16.430 49.312 16.757 >> z10.py
+
+ python globalmaptiles.py 17 49.147 16.534 49.255 16.697 >> z10.py
+ python globalmaptiles.py 18 49.147 16.534 49.255 16.697 >> z10.py
