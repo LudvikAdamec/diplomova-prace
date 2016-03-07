@@ -114,6 +114,208 @@ app.get('/se/getFeaturesIdInBbox', function(req, res){
 });
 
 
+var getIdCount = 0;
+var getIdCountDone = 0;
+app.get('/se/getFeaturesIdInBboxForLayers', function(req, res){
+  getIdCount++;
+  //console.log('getFeaturesIdInBboxForLayers');
+
+  var extent = req.param('extent'),
+      layers = req.param('layers'),
+      dbName = req.param('db'),
+      geomRow = req.param('geom'),
+      idColumn = req.param('idColumn'),
+      clipBig = req.param('clipBig');
+
+  var extentConverted = extent.map(function (x) {
+    return parseFloat(x, 10);
+  });
+
+  var envelop =  'ST_MakeEnvelope(' + 
+                    extentConverted[0] + ', ' + 
+                    extentConverted[1] + ', ' + 
+                    extentConverted[2] + ', ' + 
+                    extentConverted[3] + ', 4326)';
+
+  var connectionString = "postgres://postgres:postgres@localhost/" + dbName;
+  var results = {};
+
+  var existCountRequests = 0;
+
+  var existRowCallback = function(exist, layerName){
+    //console.log('--', existCountRequests);
+    existCountRequests--;
+    if(exist){
+      if(clipBig == "true"){
+        var extentArea = (extentConverted[2] - extentConverted[0]) * (extentConverted[3] - extentConverted[1]);
+
+        //todo: predelat efektivne na intersects
+        var queryString = ' SELECT ' + idColumn + ', ' +
+         ' CASE   WHEN ST_Area(' + geomRow + ' ) > ' + (extentArea * 2) + ' THEN 1 ELSE 0 END AS needclip ' +
+         ' FROM ' + layerName + 
+         ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop  ;
+
+      } else {
+        var queryString = "" +
+          ' SELECT ' + idColumn +
+          ' FROM ' + layerName + 
+          ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop ;
+      }
+      pg.connect(connectionString, function(err, client, done) {
+        var query = client.query(queryString);
+        query.on('row', function(row) {
+          if(clipBig == "true"){
+            results[layerName][row[idColumn]] = row['needclip'];
+          } else {
+            results[layerName][row[idColumn]] = false;
+          }
+        });
+        query.on('end', function() {
+          client.end();
+        });
+        if(err) {
+          console.log(err);
+        }
+      });
+    }
+
+    if (existCountRequests == 0) {
+      res.json({ "layers" : results, "extent": extent, "level": req.param('level') });
+      getIdCountDone++;
+    }
+
+  };
+
+  for (var i = 0; i < layers.length; i++) {
+    var layerName = layers[i];
+    results[layers[i]] = {};
+    existCountRequests++;
+    //console.log('++', existCountRequests);
+    //console.log(layerName, geomRow);
+    existRowInDB(layerName, dbName, geomRow, existRowCallback);
+  }
+
+});
+
+setInterval(function(){
+  //console.log("remain:", getIdCount, ' ', getIdCountDone );
+}, 2000);
+  
+app.get('/se/getGeometryInLayers', function(req, res){
+  var feature_collection = {
+      "type": "FeatureCollection",
+        "features": []
+  };
+  
+  var layerName = req.param('layer');
+  var dbName = req.param('db');
+  var geomRow = req.param('geom');
+  var idColumn = req.param('idColumn');
+  var clipBig = req.param('clipBig');
+  var extent = req.param('extent');
+  var idsInLayer = req.param('idsInLayer');
+
+  
+  var extentConverted = extent.map(function (x) {
+    return parseFloat(x, 10);
+  });
+
+  extent = extentConverted;
+
+  var extentArea = (extent[2] - extent[0]) * (extent[3] - extent[1]);
+  var queryString;
+  var layerNames = Object.keys(idsInLayer);
+  var layersToLoad = 0;
+
+  for (var i = 0; i < layerNames.length; i++) {
+    if(idsInLayer[layerNames[i]] != ''){
+      layersToLoad++;
+      var layerName = layerNames[i];
+      var ids = idsInLayer[layerName];
+
+      if(clipBig != "true"){
+        queryString = ' SELECT ' + idColumn + ' AS id, ST_AsGeoJSON(' + geomRow + ', 5) AS geom, ' +
+                      "ST_XMin(geometry_9) AS minx, ST_YMin(geometry_9) AS miny, ST_XMax(geometry_9) AS maxx, ST_YMax(geometry_9) AS maxy " +
+                      'FROM ' + layerName + ' WHERE ' + idColumn + ' IN(' + ids + ')';
+      } else {
+        var envelop = "ST_MakeEnvelope(" + extent[0] + ", " + extent[1] + ", " + extent[2] + ", " + extent[3] + ", 4326)";
+        queryString = "" +  
+          "SELECT " + 
+            idColumn + " AS id, " +
+            "ST_AsGeoJSON(" + geomRow + ", 6) AS geom, " +
+            "CASE   WHEN ST_Area(" + geomRow + " ) > " + (extentArea * 2) + 
+              " THEN ST_AsGeoJSON(ST_Intersection( " + envelop + ", " + geomRow + " ), 6)" +
+              " ELSE 'null'" +
+              " END AS clipped_geom, " + 
+            "CASE   WHEN ST_Area(" + geomRow + " ) <= " + (extentArea * 2) + " THEN " + "ST_AsGeoJSON(" + geomRow + ", 6 ) "  +
+              " ELSE 'null' " +
+              " END AS original_geom " +
+           "FROM " + layerName + " " +
+           "WHERE " + idColumn + " IN(" + ids + ")";
+      }  
+
+      var connectionString = "postgres://postgres:postgres@localhost/" + dbName;  
+
+      pg.connect(connectionString, function(err, client, done) {
+        var query = client.query(queryString, function(err, content){
+          //console.log(err);
+        });
+        // make feature from every row
+
+        query.on('row', function(row) {        
+          var geom;
+
+          if(clipBig != "true"){
+            geom = row.geom;
+          } else {
+            if(row.clipped_geom == 'null') {
+              geom = row.original_geom;
+            } else {
+              geom = row.clipped_geom;
+            }
+          }
+
+          //original_geom - true if is geometry not clipped / false for clipped
+          var jsonFeature = {
+            "type": "Feature",
+            "properties": {
+              "id": row.id,
+              "layer": layerName
+            },
+            "geometry": JSON.parse(geom)
+          };
+
+
+          jsonFeature.properties['geomRow'] = geomRow;
+
+          if(row.clipped_geom == 'null') {
+            jsonFeature.properties['original_geom'] = true;
+          } else {
+            jsonFeature.properties['original_geom'] = false;
+          }
+
+          feature_collection.features.push(jsonFeature);
+        });
+
+        query.on('end', function() {
+          layersToLoad--;
+          
+          client.end();
+            if (layersToLoad == 0) {
+              res.json({ "FeatureCollection" : feature_collection, "ids": ids, "level": req.param('level') });  
+            }
+        });
+
+        if(err) {
+          sog(err);
+        }
+      });
+    } else if(i == layerNames.length -1 && layersToLoad == 0){
+      res.json({ "FeatureCollection" : feature_collection, "ids": ids, "level": req.param('level') });
+    }
+  }
+});
+
 app.get('/se/getGeometry', function(req, res){
   //console.log("getGeometry");
   var feature_collection = {
@@ -208,7 +410,6 @@ app.get('/se/getGeometry', function(req, res){
   });
 });
 
-
 //TODO: kouknout na jinou moznost prenosu nez GeoJSON...nutno predelat import do OL3
 app.get('/se/getFeaturesById', function(req, res){
   //console.log("getFeaturesById");
@@ -270,6 +471,86 @@ app.get('/se/getFeaturesById', function(req, res){
         console.log(err);
       }
   });
+});
+
+app.get('/se/getFeaturesByIdinLayers', function(req, res){
+  //console.log("getFeaturesById");
+
+  var feature_collection = {
+      "type": "FeatureCollection",
+        "features": []
+  };
+
+  var layerName = req.param('layer');
+  var dbName = req.param('db');
+  var geomRow = req.param('geom');
+  var idColumn = req.param('idColumn');
+  var extent = req.param('extent');
+  var idsInLayer = req.param('idsInLayer');
+  /*console.log(idsInLayer);*/
+
+  var extentConverted = extent.map(function (x) {
+    return parseFloat(x, 10);
+  });
+
+  extent = extentConverted;
+
+  var extentArea = (extent[2] - extent[0]) * (extent[3] - extent[1]);
+  var queryString;
+
+  var layerNames = Object.keys(idsInLayer);
+  var layersToLoad = 0;
+
+  for (var i = 0; i < layerNames.length; i++) {
+    if(idsInLayer[layerNames[i]] != ''){
+      layersToLoad++;
+      var layerName = layerNames[i];
+      var ids = idsInLayer[layerName];
+
+      queryString = ' SELECT ' + idColumn + ' AS id, ' +
+                " ST_XMin(ST_Transform(geometry_9,3857)) AS minx, ST_YMin(ST_Transform(geometry_9, 3857)) AS miny, ST_XMax(ST_Transform(geometry_9, 3857)) AS maxx, ST_YMax(ST_Transform(geometry_9, 3857)) AS maxy " +
+                'FROM ' + layerName + ' WHERE ' + idColumn + ' IN(' + ids + ')';
+
+      var connectionString = "postgres://postgres:postgres@localhost/" + dbName;
+
+      pg.connect(connectionString, function(err, client, done) {
+          var query = client.query(queryString);
+          // make feature from every row
+          layersToLoad--;
+          query.on('row', function(row) {  
+            var jsonFeature = {
+              "type": "Feature",
+              "properties": {
+                "id": row.id,
+                "extent": [row.minx, row.miny, row.maxx, row.maxy],
+                "layer": layerName
+              },
+              "geometry":  {
+                "type": "Polygon",
+                "coordinates": []
+              }
+            };
+
+            feature_collection.features.push(jsonFeature);
+          });
+
+          //console.log(JSON.stringify(feature_collection));
+
+          query.on('end', function() {
+              if (layersToLoad == 0) {
+                res.json({ "FeatureCollection" : feature_collection, "ids": ids, "level": req.param('level') });            
+              }
+              client.end();
+          });
+
+          if(err) {
+            console.log(err);
+          }
+      });
+    } else if(i == layerNames -1 && layersToLoad == 0){
+      res.json({ "FeatureCollection" : feature_collection, "ids": ids, "level": req.param('level') });
+    }
+  }
 
 });
 
@@ -361,11 +642,19 @@ var convertGeoToTopo = function (feature_collection) {
   return topology;
 };
 
+var existRowInDBCount = 0;
+var existCount = 0;
+var cCount = 0;
+
 var existRowInDB = function(layerName, dbName, geomRow, callback){
+  existCount++;
+  console.log(existRowInDBCount++);
   //var queryString = 'SELECT column_name FROM information_schema.columns WHERE table_name = $1 AND column_name = $2;' + layerName + "''' and column_name='''" + geomRow + "''';";
   var connectionString = "postgres://postgres:postgres@localhost/" + dbName;  
   pg.connect(connectionString, function(err, client, done) {
+    console.log('e ', existCount, 'c ', cCount++);
     var query = client.query('SELECT column_name FROM information_schema.columns WHERE table_name = $1 AND column_name = $2', [layerName, geomRow], function(err, result) {
+      console.log(existRowInDBCount--);
       if(result.rowCount > 0){
         callback(true, layerName);
       } else {
@@ -381,7 +670,7 @@ var existRowInDB = function(layerName, dbName, geomRow, callback){
     });
 
     if(err) {
-      console.log(err);
+      console.log('', err);
     }
   });
 };
