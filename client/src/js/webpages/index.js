@@ -122,7 +122,7 @@ var map;
         width: 1.5
       }),
       fill: new ol.style.Fill({
-        color: 'rgba(100, 100, 155, 0.05)'
+        color: 'rgba(100, 100, 155, 0.15)'
       })
     })
   });
@@ -138,6 +138,9 @@ var map;
       stroke: new ol.style.Stroke({
         color: 'blue',
         width: 2.7
+      }),
+      fill: new ol.style.Fill({
+        color: 'rgba(10, 10, 155, 0.15)'
       })
     })
   });
@@ -241,12 +244,13 @@ var map;
   map.addLayer(vector);
  
   map.on('click', function(evt) {
+    var features = [];
     var feature = map.forEachFeatureAtPixel(evt.pixel,
       function(feature, layer) {
-        return feature;
+        features.push(feature);
       });
-    if (feature) {
-      console.log("id: ", feature.get('id'), feature);
+    if (features) {
+      console.log("features on position: ", features);
     }
   });
 

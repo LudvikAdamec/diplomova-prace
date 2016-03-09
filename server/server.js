@@ -135,7 +135,11 @@ var queryGetFeaturesIdInBboxForLayers = function(client, dbName, layerName, idCo
           ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop ;
       }
       
-      var query = client.query(queryString);
+      var query = client.query(queryString, function(err, content){
+        if(err){
+          console.log('err', err);
+        }
+      });
       
       query.on('row', function(row) {
         if(clipBig == "true"){
@@ -508,7 +512,7 @@ app.get('/se/getFeaturesById', function(req, res){
 
 
 var queryFeaturesById = function(client, layerName, idColumn, ids, callback){
-  var queryString = ' SELECT ' + idColumn + ' AS id, ' +
+  var queryString = ' SELECT ' + idColumn + ' AS identificator, ' +
         " ST_XMin(ST_Transform(geometry_9,3857)) AS minx, ST_YMin(ST_Transform(geometry_9, 3857)) AS miny, ST_XMax(ST_Transform(geometry_9, 3857)) AS maxx, ST_YMax(ST_Transform(geometry_9, 3857)) AS maxy " +
         'FROM ' + layerName + ' WHERE ' + idColumn + ' IN(' + ids + ')';
 
@@ -519,7 +523,7 @@ var queryFeaturesById = function(client, layerName, idColumn, ids, callback){
     var jsonFeature = {
       "type": "Feature",
       "properties": {
-        "id": row.id,
+        "id": row.identificator,
         "extent": [row.minx, row.miny, row.maxx, row.maxy],
         "layer": layerName
       },
@@ -575,7 +579,7 @@ app.get('/se/getFeaturesByIdinLayers', function(req, res){
             }
         };
         
-        queryFeaturesById(client, layerNames, idColumn, idsInLayer[layerNames[i]], callback);
+        queryFeaturesById(client, layerNames[i], idColumn, idsInLayer[layerNames[i]], callback);
        
       } else {
         layersToLoad--;

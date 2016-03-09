@@ -212,14 +212,14 @@ spatialIndexLoader.prototype.loaderSuccessMultipleLayers = function(data, callba
 
   if(this.clipBig == true){
     idToDownload = this.selectIdToDownloadMultipleLayers( data.layers , data.level);
-  } else {
-    //idToDownload = this.selectNotCachedId(Object.keys(data.featuresId));
   }
-
+  
   if(idToDownload && idToDownload.featuresCount > 0){
     this_.loadFeaturesMultipleLayers(idToDownload, data.level, data.extent, callback, this_);
+    if(idToDownload && idToDownload.geomCount > 0){
+      this.loadGeometriesMultipleLayers(idToDownload, data.level, data.extent, callback, this_);
+    }
   } else if(idToDownload && idToDownload.geomCount > 0){
-    //this_.loadGeometries(idToDownload, data.level, data.extent, callback, this_);
     this.loadGeometriesMultipleLayers(idToDownload, data.level, data.extent, callback, this_);
     callback([], 0, true, "D001");
   } else {
@@ -493,8 +493,6 @@ spatialIndexLoader.prototype.loadGeometries = function(idToDownload, level, exte
 
 spatialIndexLoader.prototype.loadGeometriesMultipleLayers = function(idToDownload, level, extent, callback, this_) {
   var idsInLayer = this.convertIdsArrayToString(idToDownload, 'geometries'); 
-
-
   this.loadGeometriesCount++;
 
   var this_ = this;
