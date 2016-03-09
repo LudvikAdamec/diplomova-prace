@@ -274,7 +274,7 @@ spatialIndexLoader.prototype.callback = function(responseFeatures, level, decrea
       } else {
         if(responseFeatures[j].properties.original_geom){
           this.addToOriginal_features_store(responseFeatures[j]);
-          if(this.loaderFunctionCount < 5 && 
+          if(this.loaderFunctionCount < 7 && 
             this.loadGeometriesCount < 7 && 
             this.loadFeaturesCount == 0 ){
             this.loadStoredFeatures();
@@ -282,7 +282,7 @@ spatialIndexLoader.prototype.callback = function(responseFeatures, level, decrea
         } else {
           this.mergeTool.addFeaturesOnLevel(responseFeatures[j], level);
           this.mergeTool.addFeaturesOnLevelInLayer(responseFeatures[j], level, layerName)
-          if(this.loaderFunctionCount < 5 && 
+          if(this.loaderFunctionCount < 7 && 
             this.loadGeometriesCount < 7 && 
             this.loadFeaturesCount == 0
           ){
@@ -372,7 +372,7 @@ spatialIndexLoader.prototype.mergeCallback = function(responseObject, this_){
       var olFeature = goog.array.find(olFeatures, function(f) {
         return f.get('id') === responseObject.feature.properties.id;
       });
-      goog.asserts.assert(!!olFeature);
+      //goog.asserts.assert(!!olFeature);
       if(olFeature){
         
         //funcionality for decreasing count of setgeometry on feature
@@ -570,17 +570,17 @@ spatialIndexLoader.prototype.loadFeatures = function(idToDownload, level, extent
 };
 
 spatialIndexLoader.prototype.convertIdsArrayToString = function(idToDownload, type){
-  var layers = Object.keys(idToDownload.features);
+  var layers =Object.keys(idToDownload[type])
   var idsInLayer = {};
 
   for (var i = 0; i < layers.length; i++) {
     idsInLayer[layers[i]] = "";
     var stringIds = "";
-    for (var j = 0; j < idToDownload.features[layers[i]].length; j++) {
+    for (var j = 0; j < idToDownload[type][layers[i]].length; j++) {
       if(j == 0){
-        stringIds += " '" + idToDownload.features[layers[i]][j] + "'";
+        stringIds += " '" + idToDownload[type][layers[i]][j] + "'";
       } else {
-        stringIds += ", '" + idToDownload.features[layers[i]][j] + "'";
+        stringIds += ", '" + idToDownload[type][layers[i]][j] + "'";
       }
     }
     idsInLayer[layers[i]] = stringIds;
@@ -718,7 +718,7 @@ spatialIndexLoader.prototype.selectIdToDownloadMultipleLayers = function(layers,
     'geomCount': geomCount, 
     'featuresCount': featuresCount
   };
-  console.log(result);
+  //console.log(result);
   return result;
 };
 

@@ -56,6 +56,14 @@ Nasledny postup
 REFACTORING AND MULTIPLE LAYERS
 - udelat IndexLoader podle VTloaderu
 
+- !!!!!!!
+	Different output for request - need to debug 
+
+	http://localhost:9001/se/getFeaturesIdInBbox?layer=obce&db=vfr_instalace2&geom=geometry_12&idColumn=ogc_fid&level=12&clipBig=true&requestType=getFeaturesIdInBbox&extent%5B%5D=16.171874999999993&extent%5B%5D=49.03786794532644&extent%5B%5D=16.259765624999993&extent%5B%5D=49.095452162534826
+
+	http://localhost:9001/se/getFeaturesIdInBboxForLayers?db=vfr_instalace2&geom=geometry_12&idColumn=ogc_fid&level=12&clipBig=true&requestType=getFeaturesIdInBboxForLayers&extent%5B%5D=16.171874999999993&extent%5B%5D=49.03786794532644&extent%5B%5D=16.259765624999993&extent%5B%5D=49.095452162534826&layers%5B%5D=obce
+- !!!!!!!
+
 
 index,js mit jako konfiguracni soubor defacto
 - nemelo by v nem byt moc business logiky

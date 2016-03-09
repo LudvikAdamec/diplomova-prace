@@ -114,11 +114,50 @@ app.get('/se/getFeaturesIdInBbox', function(req, res){
 });
 
 
-var getIdCount = 0;
-var getIdCountDone = 0;
+var queryGetFeaturesIdInBboxForLayers = function(client, dbName, layerName, idColumn, geomRow, extent, extentConverted, envelop, clipBig, results, callback){
+
+  var existRowCallback = function(exist, layerName){
+    var queryString;
+    if(exist){
+      if(clipBig == "true"){
+        var extentArea = (extentConverted[2] - extentConverted[0]) * (extentConverted[3] - extentConverted[1]);
+
+        //todo: predelat efektivne na intersects
+        queryString = ' SELECT ' + idColumn + ', ' +
+         ' CASE   WHEN ST_Area(' + geomRow + ' ) > ' + (extentArea * 2) + ' THEN 1 ELSE 0 END AS needclip ' +
+         ' FROM ' + layerName + 
+         ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop  ;
+
+      } else {
+        queryString = "" +
+          ' SELECT ' + idColumn +
+          ' FROM ' + layerName + 
+          ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop ;
+      }
+      
+      var query = client.query(queryString);
+      
+      query.on('row', function(row) {
+        if(clipBig == "true"){
+          results[layerName][row[idColumn]] = row['needclip'];
+        } else {
+          results[layerName][row[idColumn]] = false;
+        }
+      });
+      
+      query.on('end', function() {
+          callback();          
+      });
+
+    } else {
+      callback();
+    }
+
+  };
+  existRowInDB(layerName, dbName, geomRow, existRowCallback);
+};
+
 app.get('/se/getFeaturesIdInBboxForLayers', function(req, res){
-  getIdCount++;
-  //console.log('getFeaturesIdInBboxForLayers');
 
   var extent = req.param('extent'),
       layers = req.param('layers'),
@@ -140,66 +179,106 @@ app.get('/se/getFeaturesIdInBboxForLayers', function(req, res){
   var connectionString = "postgres://postgres:postgres@localhost/" + dbName;
   var results = {};
 
-  var existCountRequests = 0;
+  var existCountRequests;
+  pg.connect(connectionString, function(err, client, done) {
+    if(err) {
+      console.log('err: ', err);
+    }
 
-  var existRowCallback = function(exist, layerName){
-    //console.log('--', existCountRequests);
-    existCountRequests--;
-    if(exist){
-      if(clipBig == "true"){
-        var extentArea = (extentConverted[2] - extentConverted[0]) * (extentConverted[3] - extentConverted[1]);
+    existCountRequests = layers.length;
+    for (var i = 0; i < layers.length; i++) {
+      var layerName = layers[i];
+      results[layers[i]] = {};
 
-        //todo: predelat efektivne na intersects
-        var queryString = ' SELECT ' + idColumn + ', ' +
-         ' CASE   WHEN ST_Area(' + geomRow + ' ) > ' + (extentArea * 2) + ' THEN 1 ELSE 0 END AS needclip ' +
-         ' FROM ' + layerName + 
-         ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop  ;
-
-      } else {
-        var queryString = "" +
-          ' SELECT ' + idColumn +
-          ' FROM ' + layerName + 
-          ' WHERE ' + layerName + '.' + geomRow + '&&' + envelop ;
-      }
-      pg.connect(connectionString, function(err, client, done) {
-        var query = client.query(queryString);
-        query.on('row', function(row) {
-          if(clipBig == "true"){
-            results[layerName][row[idColumn]] = row['needclip'];
-          } else {
-            results[layerName][row[idColumn]] = false;
-          }
-        });
-        query.on('end', function() {
+      var callback = function(){
+        existCountRequests--;
+        if(existCountRequests == 0){
+          res.json({ "layers" : results, "extent": extent, "level": req.param('level') });
           client.end();
-        });
-        if(err) {
-          console.log(err);
         }
-      });
+      };
+
+      queryGetFeaturesIdInBboxForLayers(client, dbName, layerName, idColumn, geomRow, extent, extentConverted, envelop, clipBig, results, callback);
     }
-
-    if (existCountRequests == 0) {
-      res.json({ "layers" : results, "extent": extent, "level": req.param('level') });
-      getIdCountDone++;
-    }
-
-  };
-
-  for (var i = 0; i < layers.length; i++) {
-    var layerName = layers[i];
-    results[layers[i]] = {};
-    existCountRequests++;
-    //console.log('++', existCountRequests);
-    //console.log(layerName, geomRow);
-    existRowInDB(layerName, dbName, geomRow, existRowCallback);
-  }
+  });
 
 });
 
-setInterval(function(){
-  //console.log("remain:", getIdCount, ' ', getIdCountDone );
-}, 2000);
+
+var queryGeometryInLayers = function(client, layerName, idColumn, ids, geomRow, extent, extentArea, clipBig, callback){
+  var queryString;
+  var features = [];
+  if(clipBig != "true"){
+    queryString = 'SELECT ' + idColumn + ' AS id, ' + 
+                    "ST_AsGeoJSON(' + geomRow + ', 5) AS geom, " +
+                    "ST_XMin(geometry_9) AS minx, " + 
+                    "ST_YMin(geometry_9) AS miny, " + 
+                    "ST_XMax(geometry_9) AS maxx, " + 
+                    "ST_YMax(geometry_9) AS maxy " +
+                  'FROM ' + layerName + ' WHERE ' + idColumn + ' IN(' + ids + ')';
+  } else {
+    var envelop = "ST_MakeEnvelope(" + extent[0] + ", " + extent[1] + ", " + extent[2] + ", " + extent[3] + ", 4326)";
+    queryString = "" +  
+    "SELECT " + 
+      idColumn + " AS id, " +
+      "ST_AsGeoJSON(" + geomRow + ", 6) AS geom, " +
+      "CASE   WHEN ST_Area(" + geomRow + " ) > " + (extentArea * 2) + 
+      " THEN ST_AsGeoJSON(ST_Intersection( " + envelop + ", " + geomRow + " ), 6)" +
+      " ELSE 'null'" +
+      " END AS clipped_geom, " + 
+      "CASE   WHEN ST_Area(" + geomRow + " ) <= " + (extentArea * 2) + 
+      " THEN " + "ST_AsGeoJSON(" + geomRow + ", 6 ) "  +
+      " ELSE 'null' " +
+      " END AS original_geom " +
+    "FROM " + layerName + " " +
+    "WHERE " + idColumn + " IN(" + ids + ")";
+  }  
+
+  var query = client.query(queryString, function(err, content){
+    if(err){
+      console.log('err',err);
+    }
+  });
+
+  query.on('row', function(row) {        
+    var geom;
+
+    if(clipBig != "true"){
+      geom = row.geom;
+    } else {
+      if(row.clipped_geom == 'null') {
+        geom = row.original_geom;
+      } else {
+        geom = row.clipped_geom;
+      }
+    }
+
+    var jsonFeature = {
+      "type": "Feature",
+      "properties": {
+        "id": row.id,
+        "layer": layerName
+      },
+      "geometry": JSON.parse(geom)
+    };
+
+
+    jsonFeature.properties['geomRow'] = geomRow;
+
+    if(row.clipped_geom == 'null') {
+      jsonFeature.properties['original_geom'] = true;
+    } else {
+      jsonFeature.properties['original_geom'] = false;
+    }
+
+    features.push(jsonFeature);
+  });
+
+  query.on('end', function() {
+    callback(features);
+  });
+
+};
   
 app.get('/se/getGeometryInLayers', function(req, res){
   var feature_collection = {
@@ -223,97 +302,51 @@ app.get('/se/getGeometryInLayers', function(req, res){
   extent = extentConverted;
 
   var extentArea = (extent[2] - extent[0]) * (extent[3] - extent[1]);
-  var queryString;
   var layerNames = Object.keys(idsInLayer);
-  var layersToLoad = 0;
+  var layersToLoad = layerNames.length;
 
-  for (var i = 0; i < layerNames.length; i++) {
-    if(idsInLayer[layerNames[i]] != ''){
-      layersToLoad++;
-      var layerName = layerNames[i];
-      var ids = idsInLayer[layerName];
-
-      if(clipBig != "true"){
-        queryString = ' SELECT ' + idColumn + ' AS id, ST_AsGeoJSON(' + geomRow + ', 5) AS geom, ' +
-                      "ST_XMin(geometry_9) AS minx, ST_YMin(geometry_9) AS miny, ST_XMax(geometry_9) AS maxx, ST_YMax(geometry_9) AS maxy " +
-                      'FROM ' + layerName + ' WHERE ' + idColumn + ' IN(' + ids + ')';
-      } else {
-        var envelop = "ST_MakeEnvelope(" + extent[0] + ", " + extent[1] + ", " + extent[2] + ", " + extent[3] + ", 4326)";
-        queryString = "" +  
-          "SELECT " + 
-            idColumn + " AS id, " +
-            "ST_AsGeoJSON(" + geomRow + ", 6) AS geom, " +
-            "CASE   WHEN ST_Area(" + geomRow + " ) > " + (extentArea * 2) + 
-              " THEN ST_AsGeoJSON(ST_Intersection( " + envelop + ", " + geomRow + " ), 6)" +
-              " ELSE 'null'" +
-              " END AS clipped_geom, " + 
-            "CASE   WHEN ST_Area(" + geomRow + " ) <= " + (extentArea * 2) + " THEN " + "ST_AsGeoJSON(" + geomRow + ", 6 ) "  +
-              " ELSE 'null' " +
-              " END AS original_geom " +
-           "FROM " + layerName + " " +
-           "WHERE " + idColumn + " IN(" + ids + ")";
-      }  
-
-      var connectionString = "postgres://postgres:postgres@localhost/" + dbName;  
-
-      pg.connect(connectionString, function(err, client, done) {
-        var query = client.query(queryString, function(err, content){
-          //console.log(err);
-        });
-        // make feature from every row
-
-        query.on('row', function(row) {        
-          var geom;
-
-          if(clipBig != "true"){
-            geom = row.geom;
-          } else {
-            if(row.clipped_geom == 'null') {
-              geom = row.original_geom;
-            } else {
-              geom = row.clipped_geom;
-            }
-          }
-
-          //original_geom - true if is geometry not clipped / false for clipped
-          var jsonFeature = {
-            "type": "Feature",
-            "properties": {
-              "id": row.id,
-              "layer": layerName
-            },
-            "geometry": JSON.parse(geom)
-          };
-
-
-          jsonFeature.properties['geomRow'] = geomRow;
-
-          if(row.clipped_geom == 'null') {
-            jsonFeature.properties['original_geom'] = true;
-          } else {
-            jsonFeature.properties['original_geom'] = false;
-          }
-
-          feature_collection.features.push(jsonFeature);
-        });
-
-        query.on('end', function() {
-          layersToLoad--;
-          
-          client.end();
-            if (layersToLoad == 0) {
-              res.json({ "FeatureCollection" : feature_collection, "ids": ids, "level": req.param('level') });  
-            }
-        });
-
-        if(err) {
-          sog(err);
-        }
-      });
-    } else if(i == layerNames.length -1 && layersToLoad == 0){
-      res.json({ "FeatureCollection" : feature_collection, "ids": ids, "level": req.param('level') });
+  var connectionString = "postgres://postgres:postgres@localhost/" + dbName;  
+  pg.connect(connectionString, function(err, client, done) {
+    if(err) {
+      console.log('err2',err);
     }
-  }
+
+    for (var i = 0; i < layerNames.length; i++) {
+      if(idsInLayer[layerNames[i]] != ''){
+        
+        var callback = function(features){
+          for (var i = 0; i < features.length; i++) {
+            feature_collection.features.push(features[i]);
+          }
+
+          layersToLoad--;
+          if(layersToLoad == 0){
+            res.json({ 
+              "FeatureCollection" : feature_collection,
+              "ids": idsInLayer, 
+              "level": req.param('level') 
+            });
+            client.end();
+          }
+        };
+
+        queryGeometryInLayers(client, layerNames[i], idColumn, idsInLayer[layerNames[i]], geomRow, extent, extentArea, clipBig,callback);
+
+      } else {
+        layersToLoad--;
+        if(layersToLoad == 0){
+          res.json({ 
+            "FeatureCollection" : feature_collection,
+            "ids": idsInLayer, 
+            "level": req.param('level') 
+          });
+          client.end();
+        }
+      }
+    }
+
+
+  });
 });
 
 app.get('/se/getGeometry', function(req, res){
@@ -473,84 +506,86 @@ app.get('/se/getFeaturesById', function(req, res){
   });
 });
 
-app.get('/se/getFeaturesByIdinLayers', function(req, res){
-  //console.log("getFeaturesById");
 
+var queryFeaturesById = function(client, layerName, idColumn, ids, callback){
+  var queryString = ' SELECT ' + idColumn + ' AS id, ' +
+        " ST_XMin(ST_Transform(geometry_9,3857)) AS minx, ST_YMin(ST_Transform(geometry_9, 3857)) AS miny, ST_XMax(ST_Transform(geometry_9, 3857)) AS maxx, ST_YMax(ST_Transform(geometry_9, 3857)) AS maxy " +
+        'FROM ' + layerName + ' WHERE ' + idColumn + ' IN(' + ids + ')';
+
+  var query = client.query(queryString);
+  var features = [];
+
+  query.on('row', function(row) {
+    var jsonFeature = {
+      "type": "Feature",
+      "properties": {
+        "id": row.id,
+        "extent": [row.minx, row.miny, row.maxx, row.maxy],
+        "layer": layerName
+      },
+      "geometry":  {
+        "type": "Polygon",
+        "coordinates": []
+      }
+    };
+    features.push(jsonFeature);
+  });
+
+  query.on('end', function() {
+    callback(features);
+  });
+}
+
+
+app.get('/se/getFeaturesByIdinLayers', function(req, res){
   var feature_collection = {
       "type": "FeatureCollection",
         "features": []
   };
 
-  var layerName = req.param('layer');
   var dbName = req.param('db');
   var geomRow = req.param('geom');
   var idColumn = req.param('idColumn');
   var extent = req.param('extent');
   var idsInLayer = req.param('idsInLayer');
-  /*console.log(idsInLayer);*/
 
   var extentConverted = extent.map(function (x) {
     return parseFloat(x, 10);
   });
 
-  extent = extentConverted;
-
-  var extentArea = (extent[2] - extent[0]) * (extent[3] - extent[1]);
-  var queryString;
+  var extentArea = (extentConverted[2] - extentConverted[0]) * (extentConverted[3] - extentConverted[1]);
 
   var layerNames = Object.keys(idsInLayer);
-  var layersToLoad = 0;
+  var layersToLoad = layerNames.length;
+  var connectionString = "postgres://postgres:postgres@localhost/" + dbName;
 
-  for (var i = 0; i < layerNames.length; i++) {
-    if(idsInLayer[layerNames[i]] != ''){
-      layersToLoad++;
-      var layerName = layerNames[i];
-      var ids = idsInLayer[layerName];
+  pg.connect(connectionString, function(err, client, done) {
 
-      queryString = ' SELECT ' + idColumn + ' AS id, ' +
-                " ST_XMin(ST_Transform(geometry_9,3857)) AS minx, ST_YMin(ST_Transform(geometry_9, 3857)) AS miny, ST_XMax(ST_Transform(geometry_9, 3857)) AS maxx, ST_YMax(ST_Transform(geometry_9, 3857)) AS maxy " +
-                'FROM ' + layerName + ' WHERE ' + idColumn + ' IN(' + ids + ')';
-
-      var connectionString = "postgres://postgres:postgres@localhost/" + dbName;
-
-      pg.connect(connectionString, function(err, client, done) {
-          var query = client.query(queryString);
-          // make feature from every row
-          layersToLoad--;
-          query.on('row', function(row) {  
-            var jsonFeature = {
-              "type": "Feature",
-              "properties": {
-                "id": row.id,
-                "extent": [row.minx, row.miny, row.maxx, row.maxy],
-                "layer": layerName
-              },
-              "geometry":  {
-                "type": "Polygon",
-                "coordinates": []
-              }
-            };
-
-            feature_collection.features.push(jsonFeature);
-          });
-
-          //console.log(JSON.stringify(feature_collection));
-
-          query.on('end', function() {
-              if (layersToLoad == 0) {
-                res.json({ "FeatureCollection" : feature_collection, "ids": ids, "level": req.param('level') });            
-              }
-              client.end();
-          });
-
-          if(err) {
-            console.log(err);
-          }
-      });
-    } else if(i == layerNames -1 && layersToLoad == 0){
-      res.json({ "FeatureCollection" : feature_collection, "ids": ids, "level": req.param('level') });
+    for (var i = 0; i < layerNames.length; i++) {
+      if(idsInLayer[layerNames[i]] != ''){
+        var callback = function(features){
+            layersToLoad--;
+            for (var i = 0; i < features.length; i++) {
+              feature_collection.features.push(features[i]);
+            }
+          
+            if (layersToLoad == 0) {
+              res.json({ "FeatureCollection" : feature_collection, "ids": idsInLayer, "level": req.param('level') });    
+              client.end();        
+            }
+        };
+        
+        queryFeaturesById(client, layerNames, idColumn, idsInLayer[layerNames[i]], callback);
+       
+      } else {
+        layersToLoad--;
+        if(i == layerNames -1 && layersToLoad == 0){
+          res.json({ "FeatureCollection" : feature_collection, "ids": idsInLayer, "level": req.param('level') });
+        }
+      }
     }
-  }
+
+  });
 
 });
 
@@ -646,18 +681,32 @@ var existRowInDBCount = 0;
 var existCount = 0;
 var cCount = 0;
 
+
+var existRowCache = {};
+
 var existRowInDB = function(layerName, dbName, geomRow, callback){
-  existCount++;
-  console.log(existRowInDBCount++);
-  //var queryString = 'SELECT column_name FROM information_schema.columns WHERE table_name = $1 AND column_name = $2;' + layerName + "''' and column_name='''" + geomRow + "''';";
+  if(existRowCache[layerName]){
+    if(existRowCache[layerName][geomRow] != undefined){
+      if(existRowCache[layerName][geomRow] == true){
+         callback(true, layerName);
+         return;
+       } else {
+         callback(false);
+         return;
+       }
+    } 
+  } else {
+    existRowCache[layerName] = {};
+  }
+
   var connectionString = "postgres://postgres:postgres@localhost/" + dbName;  
   pg.connect(connectionString, function(err, client, done) {
-    console.log('e ', existCount, 'c ', cCount++);
     var query = client.query('SELECT column_name FROM information_schema.columns WHERE table_name = $1 AND column_name = $2', [layerName, geomRow], function(err, result) {
-      console.log(existRowInDBCount--);
       if(result.rowCount > 0){
+        existRowCache[layerName][geomRow] = true;
         callback(true, layerName);
       } else {
+        existRowCache[layerName][geomRow] = false;
         callback(false);
       }
     });
@@ -665,12 +714,10 @@ var existRowInDB = function(layerName, dbName, geomRow, callback){
     query.on('end', function() {
       client.end();
       pg.end();
-
-        //callback(feature_collection, layerName);
     });
 
     if(err) {
-      console.log('', err);
+      console.log('err3', err);
     }
   });
 };
@@ -888,7 +935,6 @@ var renderTile = function(req, res, loadTopojsonFormat){
     }
   }
 
-  //console.log(req);
   var layersToLoad = 0;
   var resObject;
 
@@ -897,7 +943,6 @@ var renderTile = function(req, res, loadTopojsonFormat){
       "type": "FeatureCollection",
         "features": []
     };
-    //resObject = [];
   } else {
     resObject = {};
   }
