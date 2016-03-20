@@ -1,17 +1,11 @@
-SI
+	SI
 - optimalizace - nezrusit getFeaturesByID a pridat jeho odpoved v pripade potreby do getGeometry??
 	- snizi se pocet requestu pri ziskavani novych features
 	- neziskavat getFeaturesIdinBBOX pri prechodu z vetsiho do mensi priblizeni -> nutnost cachovat IDs pro kazdy extent
 		- 
 
 VECTOR TILING
-- cache
-	- udelat renderovani do cache (couchDB) -> DONE DONE 
-
 - geojson vs topojson
-
-- otestovat variantu jedne geometrie pro vice zoomu - otazka jak to implementovat
-
 - co porovnavat?
 	- rychlost kompletniho nacteni
 	- velikost prenesenych dat

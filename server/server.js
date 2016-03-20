@@ -1045,7 +1045,12 @@ app.get('/se/topojsonTile', function(req, res){
 app.post('/saveStatToDB', bodyParser.json(), function (req, res) {
   if (!req.body) return res.status(400).end();
   //var results_db = nano.db.use('topojson_measure_node_cache');
-  var results_db = nano.db.use('geojson_measure_node_cache');
+  var dbName = dbName = req.param('dbName');
+  
+  if(!dbName){
+      dbName = 'geojson_measure_node_cache';
+  }
+  var results_db = nano.db.use(dbName);
 
   console.log(req.body);
   results_db.insert(req.body, function(err, body){

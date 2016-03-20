@@ -6,6 +6,7 @@ goog.require('goog.asserts');
 goog.require('goog.array');
 goog.require('ol.source.MultiLevelVector');
 goog.require('logInfo');
+goog.require('measureTool');
 
 var that;
 
@@ -48,6 +49,9 @@ vectorTileLoader = function(params) {
     this.mergeTool = new mergeTools({
       "featureFormat": this.geojsonFormat
     });
+    
+    this.activeMeasuring = false;
+    this.measuringTool = new measureTool({});
 
 
     //DBEUG toto asi neni uplne spravne....zrejme to udela globalni promennou
@@ -79,83 +83,6 @@ vectorTileLoader.prototype.loaderFunction = function(extent, resolution, project
 vectorTileLoader.prototype.geojsonFeatureToLayer = function(feature, layer) {
   var olFeature =  this.geojsonFormat.readFeature(feature, {featureProjection: 'EPSG:3857'});
   layer.addFeature(olFeature);
-};
-
-
-var measuringProperties = ['init', 'panLeft', 'zoomin', 'zoomin', 'zoomout3x'];
-var measuringResults = [];
-vectorTileLoader.prototype.measureNextProperty = function () {
-  timeStart = new Date();
-  totalMergeTime = 0;
-
-  function panMap(factor, toSide) {
-    var currentExtent = map.getView().calculateExtent(map.getSize()); 
-    var currentCenter = map.getView().getCenter();
-    var width = currentExtent[2] - currentExtent[0];
-
-    if(toSide == 'left'){
-      var newCenter = [currentCenter[0] - (factor * width), currentCenter[1]];
-      map.getView().setCenter(newCenter);
-      console.log("moved");
-    } else {
-      throw "side not implemented";
-    }
-  }
-
-  function zoomin() {
-     map.getView().setZoom(map.getView().getZoom() + 1);
-  }
-
-  function zoomout() {
-    map.getView().setZoom(map.getView().getZoom() - 3);
-  }
-
-  function saveResultsToDB (){
-    var results = {};
-    for (var i = 0; i < measuringProperties.length; i++) {
-      results[measuringProperties[i]] = measuringResults[i];
-    }
-
-    $.ajax({
-      url: 'http://localhost:9001/saveStatToDB/',
-      type: "POST",
-      data: JSON.stringify({"results": results}),
-      contentType: 'application/json',
-      datatype: 'text/plain',  
-      success: function(){
-        //location.reload();
-      },
-      error:function(er){
-        return console.log("chyba: ", er);
-      }   
-    });  
-  }
-
-  console.log(measuringResults);
-  if(true == false){
-    if(measuringResults.length == measuringProperties.length){
-      saveResultsToDB();
-    } else {
-      switch (measuringResults.length){
-        case 1:
-          zoomin();
-          break;
-        case 2:
-          panMap(1, 'left');
-          break;
-        case 3:
-          zoomin();
-          break;
-        case 4: 
-          zoomin();
-          break;
-        case 5:
-          zoomout();
-          break;
-      }
-    }
-  }
-  // body...
 };
 
 var totalTime = 0;  
@@ -292,13 +219,16 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
           break;
         }
       }
-  
-      measuringResults.push({
-       loading: mergingStarted - timeStart,
-       merging: totalMergeTime 
-      });
-
-      this_.measureNextProperty();
+      
+      if (this_.activeMeasuring) {
+          this_.measuringTool.addResults((mergingStarted - timeStart), totalMergeTime);
+          timeStart = new Date();
+          totalMergeTime = 0;
+          this_.measuringTool.measureNextProperty();
+      } else {
+          timeStart = new Date();
+          totalMergeTime = 0;
+      }
     }
   }  
 
@@ -313,12 +243,15 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
     this_.logger.loadingStatusChange({"mergingTime": totalMergeTime});
     this_.source.changed();
 
-    measuringResults.push({
-     loading: mergingStarted - timeStart,
-     merging: totalMergeTime 
-    });
-
-    this_.measureNextProperty();
+      if (this_.activeMeasuring) {
+          this_.measuringTool.addResults((mergingStarted - timeStart), totalMergeTime);
+          timeStart = new Date();
+          totalMergeTime = 0;
+          this_.measuringTool.measureNextProperty();
+      } else {
+        timeStart = new Date();
+        totalMergeTime = 0;
+      }
   }
 
   //SINGLE LAYER in tile - geojson

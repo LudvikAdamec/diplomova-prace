@@ -5,6 +5,7 @@ goog.require('ol.source.MultiLevelVector');
 goog.require('ol.proj');
 goog.require('goog.asserts');
 goog.require('goog.array');
+goog.require('measureTool');
 
 
 /**
@@ -60,6 +61,12 @@ spatialIndexLoader = function(params) {
     this.mergeTool = new mergeTools({
       "featureFormat": this.geojsonFormat
     });
+    
+    this.activeMeasuring = false;
+    this.measuringTool = new measureTool({
+        "db": "geojson_sis_node_cache"
+    });
+
 
     this.initLayersToCache();
 
@@ -136,36 +143,6 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
     }   
   }); 
   
-
-  /*
-  var data = {
-    "layer": this.layerName,
-    "db": this.dbname,
-    "geom": this.geomRow,
-    "idColumn": this.idColumn,
-    "level": level,
-    "clipBig": this.clipBig,
-    "requestType": "getFeaturesIdInBbox",
-    "extent": [a[0], a[1], b[0], b[1]]
-  };
-
-  $.ajax({
-    url: this_.url + data.requestType,
-    type: "get",
-    data: data,
-    datatype: 'json',
-    success: function(data){
-      this_.loaderFunctionCount--;
-      this_.loaderSuccess(data, function(responseFeatures, level, decrease){
-        this_.callback(responseFeatures, level, decrease, "DF_ID", targetSource);
-      });
-    },
-    error:function(er){
-      this_.callback([]);
-      return console.log("chyba: ", er);
-    }   
-  });*/ 
-  
 };
 
 /**
@@ -236,129 +213,93 @@ spatialIndexLoader.prototype.addToOriginal_features_store = function(feature){
   this.original_layers_features_store[layer].push(feature);
 };
 
-spatialIndexLoader.prototype.callback = function(responseFeatures, level, decrease, message, source){
-  if(decrease){
-    this.loadingExtents--;
-  }
+spatialIndexLoader.prototype.callback = function(responseFeatures, level, decrease, message, source) {
+    if (decrease) {
+        this.loadingExtents--;
+    }
 
-  if (this.loadingExtents == 0) {
-    this.timeFinish = new Date();
+    if (this.loadingExtents == 0) {
+        //this.timeFinish = new Date();
 
-  };
-
-  this.logger.loadingStatusChange({
-    "statusExtents": this.loadingExtents, 
-    "loadingTime": new Date() - this.timeStart
-  });
-
-  //prenest do samostatne fce
-  if(this.loadingExtents == 0){
-    var contentSize = Math.round(this.loadedContentSize * 100) / 100;
-    this.logger.loadingStatusChange({
-      "statusMessage": 'extent loaded <i class="fa fa-check"></i>', 
-      "sizeMessage": contentSize + 'mb'
-    });
+    };
 
     this.logger.loadingStatusChange({
-      "statusExtents": this.loadingExtents,
-      "loadingTime": this.timeFinish - this.timeStart
+        "statusExtents": this.loadingExtents,
+        "loadingTime": new Date() - this.timeStart
     });
-  }
+    
+    console.log( "loadingTime", new Date() - this.timeStart);
 
-   if(this.layers != undefined){   
-    for (var j = 0; j < responseFeatures.length; j++) {
-      var layerName = responseFeatures[j].properties.layer;
-      if(decrease){
-        var layerSource = this.layers[layerName];
-        this.geojsonFeatureToLayer(responseFeatures[j], layerSource, level);
-      } else {
-        if(responseFeatures[j].properties.original_geom){
-          this.addToOriginal_features_store(responseFeatures[j]);
-          if(this.loaderFunctionCount < 7 && 
-            this.loadGeometriesCount < 7 && 
-            this.loadFeaturesCount == 0 ){
-            this.loadStoredFeatures();
-          }
-        } else {
-          this.mergeTool.addFeaturesOnLevel(responseFeatures[j], level);
-          this.mergeTool.addFeaturesOnLevelInLayer(responseFeatures[j], level, layerName)
-          if(this.loaderFunctionCount < 7 && 
-            this.loadGeometriesCount < 7 && 
-            this.loadFeaturesCount == 0
-          ){
-            if(this.mergeTool.featuresToMergeOnLevelInLayer[level]){
-              var layers = Object.keys(this.mergeTool.featuresToMergeOnLevelInLayer[level]);
-              for (var n = 0; n < layers.length; n++) {
-                if(this.mergeTool.featuresToMergeOnLevelInLayer[level][layers[n]].length){
-                  console.log("merge");
-                  this.logger.loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
-                  mergingStarted = new Date();
-                  this.mergeTool.merge(this.mergeCallback, level, this);
-                  mergingFinished = new Date();
-                  totalMergeTime += mergingFinished - mergingStarted;
-                  
-                  this.logger.loadingStatusChange({
-                    "mergingTime": totalMergeTime,
-                    "statusMessage": '<i class="fa fa-check"></i>'
-                  });
+    if (this.layers != undefined) {
+        for (var j = 0; j < responseFeatures.length; j++) {
+            var layerName = responseFeatures[j].properties.layer;
+            if (decrease) {
+                var layerSource = this.layers[layerName];
+                this.geojsonFeatureToLayer(responseFeatures[j], layerSource, level);
+            } else {
+                if (responseFeatures[j].properties.original_geom) {
+                    this.addToOriginal_features_store(responseFeatures[j]);
+                } else {
+                    this.mergeTool.addFeaturesOnLevel(responseFeatures[j], level);
+                    this.mergeTool.addFeaturesOnLevelInLayer(responseFeatures[j], level, layerName)
+                }
+
+            }
+
+        }
+    }
+    
+    if (this.loaderFunctionCount < 7 && this.loadGeometriesCount < 7 && this.loadFeaturesCount == 0 ) {
+        this.loadStoredFeatures();
+        
+        if (this.mergeTool.featuresToMergeOnLevelInLayer[level]) {
+            var layers = Object.keys(this.mergeTool.featuresToMergeOnLevelInLayer[level]);
+            for (var n = 0; n < layers.length; n++) {
+                if (this.mergeTool.featuresToMergeOnLevelInLayer[level][layers[n]].length) {
+                    console.log("merge");
+                    this.logger.loadingStatusChange({ "statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>' });
+                    mergingStarted = new Date();
+                    this.mergeTool.merge(this.mergeCallback, level, this);
+                    mergingFinished = new Date();
+                    totalMergeTime += mergingFinished - mergingStarted;
+
+                    this.logger.loadingStatusChange({
+                        "mergingTime": totalMergeTime,
+                        "statusMessage": '<i class="fa fa-check"></i>'
+                    });
+                    
+                    console.log("mergingTime", totalMergeTime);                 
 
                 }
-              }
             }
-            //console.log("pocet k merge:", this.mergeTool.featuresToMergeOnLevel[level].length);
-          //if(this.loadingExtents == 0 && this.mergeTool.featuresToMergeOnLevel[level].length){
-            //source.changed();
-          }
         }
-
-      }
-
     }
+    
+    if (this.loaderFunctionCount < 1 && this.loadGeometriesCount < 1 && this.loadFeaturesCount < 1) {
+        this.timeFinish = new Date();
 
-    this.loadStoredFeatures();
+        this.logger.loadingStatusChange({
+            "statusExtents": this.loadingExtents,
+            "loadingTime": this.timeFinish - this.timeStart
+        });
 
 
-  } else {
-    for (var j = 0; j < responseFeatures.length; j++) {
-      if(decrease){
-        this.geojsonFeatureToLayer(responseFeatures[j], source, level);
-      } else {
-        if(responseFeatures[j].properties.original_geom){
-          this.original_features_store.push(responseFeatures[j]);
-          if(this.loaderFunctionCount == 0 && 
-            this.loadGeometriesCount < 7 && 
-            this.loadFeaturesCount == 0 ){
-            this.loadStoredFeatures(source);
-          }
-        } else {
-          this.mergeTool.addFeaturesOnLevel(responseFeatures[j], level);
-          if(this.loaderFunctionCount == 0 && 
-            this.loadGeometriesCount < 7 && 
-            this.loadFeaturesCount == 0 && 
-            this.mergeTool.featuresToMergeOnLevel[level].length
-          ){
-            //console.log("pocet k merge:", this.mergeTool.featuresToMergeOnLevel[level].length);
-          //if(this.loadingExtents == 0 && this.mergeTool.featuresToMergeOnLevel[level].length){
-            console.log("merge");
-            this.logger.loadingStatusChange({"statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>'});
-            mergingStarted = new Date();
-            this.mergeTool.merge(this.mergeCallback, level, source);
-            mergingFinished = new Date();
-            totalMergeTime += mergingFinished - mergingStarted;
-            
-            this.logger.loadingStatusChange({
-              "mergingTime": totalMergeTime,
-              "statusMessage": '<i class="fa fa-check"></i>'
-            });
+        var contentSize = Math.round(this.loadedContentSize * 100) / 100;
+        this.logger.loadingStatusChange({
+            "statusMessage": 'extent loaded <i class="fa fa-check"></i>',
+            "sizeMessage": contentSize + 'mb'
+        });
 
-            source.changed();
-          }
+        console.log("loadingTime", this.timeFinish - this.timeStart);
+
+
+        if (this.activeMeasuring) {
+            this.measuringTool.addResults((mergingStarted - this.timeStart), totalMergeTime);
+            this.timeStart = new Date();
+            totalMergeTime = 0;
+            this.measuringTool.measureNextProperty();
         }
-
-      }
-
-    }
-  }
+    } 
 };
 
 
@@ -716,7 +657,7 @@ spatialIndexLoader.prototype.selectIdToDownloadMultipleLayers = function(layers,
     'geomCount': geomCount, 
     'featuresCount': featuresCount
   };
-  //console.log(result);
+  console.log(result.features);
   return result;
 };
 

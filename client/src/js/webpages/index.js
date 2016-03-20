@@ -209,13 +209,14 @@ var map;
   var loader = new spatialIndexLoader(loaderParams);
   var vtLoader = new vectorTileLoader(loaderParams); 
 
-  /*
-  var vectorSource = new ol.source.MultiLevelVector({
+  
+  /*var vectorSource = new ol.source.MultiLevelVector({
     loader: vtLoader.loaderFunction, // loaderFunctionVT,
     strategy: ol.loadingstrategy.tile(tileGrid),
     view: map.getView()
-  });
-  */
+  });*/
+  
+  
 
   var spatialLoaderFunction = function(extent, resolution, projection){
     var source = this;
