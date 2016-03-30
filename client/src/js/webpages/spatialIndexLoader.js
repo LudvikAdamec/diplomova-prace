@@ -73,6 +73,17 @@ spatialIndexLoader = function(params) {
     console.log(this);
 }
 
+var restartTimer;
+function startTimer() {
+    restartTimer = setTimeout(function(){
+         location.reload(); 
+   }, 80000);
+}
+function stopTimer() {
+    clearTimeout(restartTimer);
+}
+
+
 
 spatialIndexLoader.prototype.initLayersToCache = function(){
   var layers = Object.keys(this.layers);
@@ -94,7 +105,6 @@ spatialIndexLoader.prototype.initLayersToCache = function(){
 spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, projection, targetSource /* todo callback*/) {
   if(this.loadingExtents == 0){
     this.timeStart = new Date();
-    console.log('timeStart');
   }
 
   this.loadingExtents++;
@@ -131,8 +141,9 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
     type: "get",
     data: data,
     datatype: 'json',
-    success: function(data){
+    success: function(data, status, xhr){
       this_.loaderFunctionCount--;
+      this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
       this_.loaderSuccessMultipleLayers(data, function(responseFeatures, level, decrease){
         this_.callback(responseFeatures, level, decrease, "DF_ID", targetSource);
       });
@@ -185,6 +196,9 @@ spatialIndexLoader.prototype.addToOriginal_features_store = function(feature){
 };
 
 spatialIndexLoader.prototype.callback = function(responseFeatures, level, decrease, message, source) {
+  stopTimer();
+  startTimer();
+  
     if (decrease) {
         this.loadingExtents--;
     }
@@ -199,8 +213,6 @@ spatialIndexLoader.prototype.callback = function(responseFeatures, level, decrea
         "loadingTime": new Date() - this.timeStart
     });
     
-    console.log( "loadingTime", new Date() - this.timeStart);
-
     //handle data from server
     if (this.layers != undefined) {
         for (var j = 0; j < responseFeatures.length; j++) {
@@ -222,14 +234,14 @@ spatialIndexLoader.prototype.callback = function(responseFeatures, level, decrea
     }
     
     //merging and adding features to map
-    if (this.loaderFunctionCount < 7 && this.loadGeometriesCount < 7 && this.loadFeaturesCount == 0 ) {
+    if (this.loaderFunctionCount < 3 && this.loadGeometriesCount < 3 && this.loadFeaturesCount == 0 ) {
+        this.timeFinish = new Date();
         this.loadStoredFeatures();
         
         if (this.mergeTool.featuresToMergeOnLevelInLayer[level]) {
             var layers = Object.keys(this.mergeTool.featuresToMergeOnLevelInLayer[level]);
             for (var n = 0; n < layers.length; n++) {
                 if (this.mergeTool.featuresToMergeOnLevelInLayer[level][layers[n]].length) {
-                    console.log("merge");
                     this.logger.loadingStatusChange({ "statusMessage": 'merging <i class="fa fa-spinner fa-spin"></i>' });
                     mergingStarted = new Date();
                     this.mergeTool.merge(this.mergeCallback, level, this);
@@ -240,9 +252,6 @@ spatialIndexLoader.prototype.callback = function(responseFeatures, level, decrea
                         "mergingTime": totalMergeTime,
                         "statusMessage": '<i class="fa fa-check"></i>'
                     });
-                    
-                    console.log("mergingTime", totalMergeTime);                 
-
                 }
             }
         }
@@ -250,25 +259,21 @@ spatialIndexLoader.prototype.callback = function(responseFeatures, level, decrea
     
     //logger and measureTool activity
     if (this.loaderFunctionCount < 1 && this.loadGeometriesCount < 1 && this.loadFeaturesCount < 1) {
-        this.timeFinish = new Date();
+        //this.timeFinish = new Date();
 
         this.logger.loadingStatusChange({
             "statusExtents": this.loadingExtents,
             "loadingTime": this.timeFinish - this.timeStart
         });
-
-
+        
         var contentSize = Math.round(this.loadedContentSize * 100) / 100;
         this.logger.loadingStatusChange({
             "statusMessage": 'extent loaded <i class="fa fa-check"></i>',
             "sizeMessage": contentSize + 'mb'
         });
 
-        console.log("loadingTime", this.timeFinish - this.timeStart);
-
-
         if (this.activeMeasuring) {
-            this.measuringTool.addResults((mergingStarted - this.timeStart), totalMergeTime);
+            this.measuringTool.addResults((this.timeFinish - this.timeStart), totalMergeTime, contentSize);
             this.timeStart = new Date();
             totalMergeTime = 0;
             this.measuringTool.measureNextProperty();
@@ -336,26 +341,6 @@ spatialIndexLoader.prototype.loadStoredFeatures = function(source) {
       }
     }
   }
-};
-
-spatialIndexLoader.prototype.getCountOfFeature = function(){
-  var count = 0;
-  var layers = Object.keys(this.layers);
-  for (var i = 0; i < layers.length; i++) {
-    count += this.layers[layers[i]].getFeatures().length;
-    console.log(this.layers[layers[i]].getFeatures());
-  }
-    this.loadStoredFeatures();
-  console.log('celkem je:', count);
-
-  count = 0;
-  layers = Object.keys(this.layers);
-  for (var i = 0; i < layers.length; i++) {
-    count += this.layers[layers[i]].getFeatures().length;
-    console.log(this.layers[layers[i]].getFeatures());
-  }
-  console.log('celkem je:', count);
-
 };
 
 spatialIndexLoader.prototype.loadGeometriesMultipleLayers = function(idToDownload, level, extent, callback, this_) {
@@ -524,6 +509,6 @@ spatialIndexLoader.prototype.selectIdToDownloadMultipleLayers = function(layers,
     'geomCount': geomCount, 
     'featuresCount': featuresCount
   };
-  console.log(result.features);
+
   return result;
 };

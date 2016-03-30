@@ -201,21 +201,20 @@ var map;
       obce: obceSource,
       okresy: okresySource,
       kraje: krajeSource,
-      katastralniuzemi: katastralniuzemiSource,
-      parcely: parcelySource
+      katastralniuzemi: katastralniuzemiSource
     }
   };
 
   var loader = new spatialIndexLoader(loaderParams);
   var vtLoader = new vectorTileLoader(loaderParams); 
 
-  
-  /*var vectorSource = new ol.source.MultiLevelVector({
+  /*
+  var vectorSource = new ol.source.MultiLevelVector({
     loader: vtLoader.loaderFunction, // loaderFunctionVT,
     strategy: ol.loadingstrategy.tile(tileGrid),
     view: map.getView()
-  });*/
-  
+  });
+  */
   
 
   var spatialLoaderFunction = function(extent, resolution, projection){

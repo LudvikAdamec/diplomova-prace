@@ -97,12 +97,13 @@ var lastLoadingExtents;
 var fromLastLoading;
 
 var restartTimer;
+/*
 function startTimer() {
     restartTimer = setTimeout(function(){ location.reload(); }, 30000);
 }
 function stopTimer() {
     clearTimeout(restartTimer);
-}
+}*/
 
 vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease, message, zoom, this_){
   stopTimer();
@@ -204,7 +205,7 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
   }
 
   //MULTIPLE LAYERS in tile - geojson
-  if(this_.loadingExtents < 5){
+  if(this_.loadingExtents < 1){
     lastLoadingExtents = this_.loadingExtents;
     if(this_.mergeTool.featuresToMergeOnLevelInLayer[level]){
       var layers = Object.keys(this_.mergeTool.featuresToMergeOnLevelInLayer[level]);
@@ -233,7 +234,7 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
   }  
 
   //SINGLE and MULTIPLE LAYERS in tile - topojson
-  if(this_.loadingExtents < 5 && this_.mergeTool.topojsonOnLevel[level] && this_.mergeTool.topojsonOnLevel[level].length){
+  if(this_.loadingExtents < 1 && this_.mergeTool.topojsonOnLevel[level] && this_.mergeTool.topojsonOnLevel[level].length){
     lastLoadingExtents = this_.loadingExtents;
     console.log("merge");
     mergingStarted = new Date();

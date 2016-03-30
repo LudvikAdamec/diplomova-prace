@@ -19,8 +19,8 @@ measureTool = function(params) {
     this.dbName = params.db;
 }
 
-measureTool.prototype.addResults = function(loadingTime, mergingTime) {
-    this.measuringResults.push({ loading: loadingTime, merging: mergingTime });
+measureTool.prototype.addResults = function(loadingTime, mergingTime, size) {
+    this.measuringResults.push({ "loading": loadingTime, "merging": mergingTime, "size": size });
 };
 
 measureTool.prototype.panMap = function(factor, toSide) {
@@ -51,6 +51,9 @@ measureTool.prototype.saveResultsToDB = function() {
         results[this.measuringProperties[i]] = this.measuringResults[i];
     }
 
+    location.reload();
+
+    /*
     $.ajax({
         url: 'http://localhost:9001/saveStatToDB/',
         type: "POST",
@@ -65,7 +68,7 @@ measureTool.prototype.saveResultsToDB = function() {
         error: function(er) {
             return console.log("chyba: ", er);
         }
-    });
+    });*/
 };
 
 measureTool.prototype.measureNextProperty = function() {
