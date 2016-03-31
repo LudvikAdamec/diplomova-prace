@@ -1,8 +1,8 @@
-// Located in: ./get-features-id.js
+// Located in: ./get-features-id-in-bbox.js
 var nano = require('nano')('http://localhost:5984');
 var pg = require('pg');
 
-var getFeaturesIddd = function(req, res, client, done){
+var getFeaturesIdInBbox = function(req, res, client, done){
   var this_ = this;
   this.req = req;
   this.res = res;
@@ -49,7 +49,7 @@ var getFeaturesIddd = function(req, res, client, done){
   }  
 };
 
-getFeaturesIddd.prototype.init = function(){
+getFeaturesIdInBbox.prototype.init = function(){
     this.existCountRequests = this.layers.length;
     for (var i = 0; i < this.layers.length; i++) {
       var layerName = this.layers[i];
@@ -59,7 +59,7 @@ getFeaturesIddd.prototype.init = function(){
     }
 };
 
-getFeaturesIddd.prototype.callback = function(){
+getFeaturesIdInBbox.prototype.callback = function(){
     this.existCountRequests--;
     if(this.existCountRequests == 0){
       this.res.json({ "layers" : this.results, "extent": this.extent, "level": this.req.param('level') });
@@ -67,7 +67,7 @@ getFeaturesIddd.prototype.callback = function(){
     }
 };
 
-getFeaturesIddd.prototype.existRowCallback = function(exist, layerName){
+getFeaturesIdInBbox.prototype.existRowCallback = function(exist, layerName){
   var this_ = this;
 
   var queryString;
@@ -111,7 +111,7 @@ getFeaturesIddd.prototype.existRowCallback = function(exist, layerName){
     }
 };
 
-getFeaturesIddd.prototype.existRowInDB = function(layerName) {   
+getFeaturesIdInBbox.prototype.existRowInDB = function(layerName) {   
   var this_ = this;
 
   if (this.existRowCache[layerName]) {
@@ -149,5 +149,5 @@ getFeaturesIddd.prototype.existRowInDB = function(layerName) {
 };
 
 
-module.exports = getFeaturesIddd;
+module.exports = getFeaturesIdInBbox;
 

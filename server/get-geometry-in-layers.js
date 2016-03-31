@@ -1,8 +1,8 @@
-// Located in: ./new-get-geometry.js
+// Located in: ./get-geometry-in-layers.js
 var nano = require('nano')('http://localhost:5984');
 var pg = require('pg');
 
-var NewGetGeometry = function(req, res, client){
+var getGeometryInLayers = function(req, res, client){
 	var this_ = this;
 	this.req = req;
 	this.res = res;
@@ -51,7 +51,7 @@ var NewGetGeometry = function(req, res, client){
 	}
 };
 
-NewGetGeometry.prototype.init = function(){
+getGeometryInLayers.prototype.init = function(){
 	for (var i = 0; i < this.layerNames.length; i++) {
 		if(i == this.layerNames.length - 1 ){
 			this.ready = true;
@@ -67,7 +67,7 @@ NewGetGeometry.prototype.init = function(){
 	}
 };
 
-NewGetGeometry.prototype.queryGeometryInLayers = function(layerName, ids){
+getGeometryInLayers.prototype.queryGeometryInLayers = function(layerName, ids){
 	var this_ = this;
 	var queryString;
 	var features = [];
@@ -145,7 +145,7 @@ NewGetGeometry.prototype.queryGeometryInLayers = function(layerName, ids){
 };
 
 
-NewGetGeometry.prototype.queryGeometryInLayersCallback = function(features){
+getGeometryInLayers.prototype.queryGeometryInLayersCallback = function(features){
 	//dWait++;
 	for (var i = 0; i < features.length; i++) {
 		this.feature_collection.features.push(features[i]);
@@ -171,4 +171,4 @@ NewGetGeometry.prototype.queryGeometryInLayersCallback = function(features){
 };
 
 
-module.exports = NewGetGeometry;
+module.exports = getGeometryInLayers;

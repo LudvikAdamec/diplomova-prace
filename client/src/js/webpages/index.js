@@ -195,7 +195,7 @@ var map;
       dbname : "vfr_instalace2",
       geomColumn : "geometry_1",
       idColumn : "ogc_fid",
-      url : "http://localhost:9001/se/"
+      url : "http://localhost:9001/"
     },
     layers: {
       obce: obceSource,
@@ -207,26 +207,26 @@ var map;
 
   var loader = new spatialIndexLoader(loaderParams);
   var vtLoader = new vectorTileLoader(loaderParams); 
-
-  /*
-  var vectorSource = new ol.source.MultiLevelVector({
-    loader: vtLoader.loaderFunction, // loaderFunctionVT,
-    strategy: ol.loadingstrategy.tile(tileGrid),
-    view: map.getView()
-  });
-  */
-  
+ 
 
   var spatialLoaderFunction = function(extent, resolution, projection){
     var source = this;
     loader.loaderFunction(extent, resolution, projection, source);
   };
 
-  var vectorSource = new ol.source.MultiLevelVector({
-    loader: spatialLoaderFunction, // loaderFunctionVT,
-    strategy: ol.loadingstrategy.tile(tileGrid),
-    view: map.getView()
-  });
+  if(true == false){
+    var vectorSource = new ol.source.MultiLevelVector({
+      loader: vtLoader.loaderFunction, // loaderFunctionVT,
+      strategy: ol.loadingstrategy.tile(tileGrid),
+      view: map.getView()
+    });
+  } else {
+    var vectorSource = new ol.source.MultiLevelVector({
+      loader: spatialLoaderFunction, // loaderFunctionVT,
+      strategy: ol.loadingstrategy.tile(tileGrid),
+      view: map.getView()
+    });
+  }
 
   var vector = new ol.layer.Vector({
     source: vectorSource,

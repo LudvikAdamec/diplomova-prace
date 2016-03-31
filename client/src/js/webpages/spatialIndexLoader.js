@@ -131,7 +131,7 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
     "idColumn": this.idColumn,
     "level": level,
     "clipBig": this.clipBig,
-    "requestType": "getFeaturesIdInBboxForLayers",
+    "requestType": "getFeaturesIdInBbox",
     "extent": [a[0], a[1], b[0], b[1]],
     "layers": Object.keys(this.layers)
   };

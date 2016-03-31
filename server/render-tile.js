@@ -1,9 +1,9 @@
-// Located in: ./new-tile-shared-connection.js
+// Located in: ./render-tile.js
 var nano = require('nano')('http://localhost:5984');
 var pg = require('pg');
 var TGrid = require('./tilegrid.js');
 
-var NewTile = function(req, res, loadTopojsonFormat, client){
+var renderTile = function(req, res, loadTopojsonFormat, client){
 	var this_ = this;
 	this.req = req;
 	this.res = res;
@@ -64,7 +64,7 @@ var NewTile = function(req, res, loadTopojsonFormat, client){
 
 };
 
-NewTile.prototype.init = function(){
+renderTile.prototype.init = function(){
 	var this_ = this;
 	if(this.loadFromCache){
 		//ziskani dlazdice pokud je v TGrid...pokud neni tak se vygeneruje a vlozi do CouchDB TGrid
@@ -91,7 +91,7 @@ NewTile.prototype.init = function(){
 };
 
 
-NewTile.prototype.existRowCallback = function(exist, layerName, geomRow){
+renderTile.prototype.existRowCallback = function(exist, layerName, geomRow){
 	if(exist){
 		this.getTile(layerName, geomRow);
 	} else {
@@ -108,7 +108,7 @@ NewTile.prototype.existRowCallback = function(exist, layerName, geomRow){
 	}
 };
 
-NewTile.prototype.existRowInDB = function(layerName, geomRow) {   
+renderTile.prototype.existRowInDB = function(layerName, geomRow) {   
 	var this_ = this;
 
 	if (this.existRowCache[layerName]) {
@@ -147,7 +147,7 @@ NewTile.prototype.existRowInDB = function(layerName, geomRow) {
 };
 
 
-NewTile.prototype.getTile = function(layerName, geomRow){
+renderTile.prototype.getTile = function(layerName, geomRow){
 	var this_ = this;
 	var extent = [this.bound[1], this.bound[0], this.bound[3], this.bound[2]];
 
@@ -224,7 +224,7 @@ NewTile.prototype.getTile = function(layerName, geomRow){
 };
 
 
-NewTile.prototype.getTileCallback = function(feature_collection, layerName){
+renderTile.prototype.getTileCallback = function(feature_collection, layerName){
 	this.layersToLoad--; 
     var fCount = feature_collection.features.length;
     var jsonData = feature_collection;
@@ -243,6 +243,7 @@ NewTile.prototype.getTileCallback = function(feature_collection, layerName){
     	if(this.loadTopojsonFormat){
     		this.resObject = convertGeoToTopo(resObject);
     	}
+
     	this.res.json({ "xyz" : this.xyz, 'json': this.resObject, 'bound': this.bound});
     	if(!this.sharedPool){
     		this.done();
@@ -264,4 +265,4 @@ NewTile.prototype.getTileCallback = function(feature_collection, layerName){
     }	
 };
 
-module.exports = NewTile;
+module.exports = renderTile;
