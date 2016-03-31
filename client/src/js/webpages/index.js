@@ -214,7 +214,7 @@ var map;
     loader.loaderFunction(extent, resolution, projection, source);
   };
 
-  if(true == false){
+  if(true == true){
     var vectorSource = new ol.source.MultiLevelVector({
       loader: vtLoader.loaderFunction, // loaderFunctionVT,
       strategy: ol.loadingstrategy.tile(tileGrid),
