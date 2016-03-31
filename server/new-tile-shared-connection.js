@@ -3,7 +3,7 @@ var nano = require('nano')('http://localhost:5984');
 var pg = require('pg');
 var TGrid = require('./tilegrid.js');
 
-var NewTile = function(req, res, loadTopojsonFormat){
+var NewTile = function(req, res, loadTopojsonFormat, client){
 	var this_ = this;
 	this.req = req;
 	this.res = res;
@@ -43,11 +43,24 @@ var NewTile = function(req, res, loadTopojsonFormat){
 
 	this.existRowInDBCount = 0;
 
-	var connectionString = "postgres://postgres:postgres@localhost/" + this.dbName;
-	pg.connect(connectionString, function(err, client, done) {
-		this_.client = client;
+	if(client){
+		this.client = client;
 		this_.init();
-	});
+		this.sharedPool = true;
+	} else {
+		var connectionString = "postgres://postgres:postgres@localhost/" + this.dbName;
+		pg.connect(connectionString, function(err, client, done) {
+			if (err) {
+	            console.log('err2', err);
+	        }
+
+	        this.sharedPool = false;
+			
+			this_.client = client;
+			this_.done = done;
+			this_.init();
+		});
+	}
 
 };
 
@@ -85,6 +98,12 @@ NewTile.prototype.existRowCallback = function(exist, layerName, geomRow){
 		this.layersToLoad--;
 		if(this.layersToLoad == 0){
 			this.res.json({ "xyz" : this.xyz, 'json': this.resObject, 'bound': this.bound});
+
+			if(!this.sharedPool){
+	    		this.done();
+	    	}
+			
+			//this.done();
 		}
 	}
 };
@@ -225,8 +244,9 @@ NewTile.prototype.getTileCallback = function(feature_collection, layerName){
     		this.resObject = convertGeoToTopo(resObject);
     	}
     	this.res.json({ "xyz" : this.xyz, 'json': this.resObject, 'bound': this.bound});
-    	this.client.end();
-    	pg.end();
+    	if(!this.sharedPool){
+    		this.done();
+    	}
     }
 
     if(fCount && this.layersToLoad == 0 && this.loadFromCache){

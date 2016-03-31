@@ -51,9 +51,8 @@ measureTool.prototype.saveResultsToDB = function() {
         results[this.measuringProperties[i]] = this.measuringResults[i];
     }
 
-    location.reload();
 
-    /*
+    
     $.ajax({
         url: 'http://localhost:9001/saveStatToDB/',
         type: "POST",
@@ -68,7 +67,7 @@ measureTool.prototype.saveResultsToDB = function() {
         error: function(er) {
             return console.log("chyba: ", er);
         }
-    });*/
+    });
 };
 
 measureTool.prototype.measureNextProperty = function() {

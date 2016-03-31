@@ -11,9 +11,11 @@ memwatch.on('leak', function(info) {
 
 var statistics = require('./statistics.js');
 //var vTile  = require('./vector-tile.js');
+
 //console.log(vTile);
 
 //console.log(statistics.loadDatabaseDocs('geojson_sis_node_cache'));
+//console.log(statistics.loadDatabaseDocs('geojson_measure_node_cache'));
 
 
 
@@ -230,8 +232,26 @@ var handleGetFeaturesIdInBboxForLayers = function(req, res){
   });  
 }; 
 
+
+var getFeaturesId  = require('./get-features-id.js');
+
+var featuresIdClient = undefined;
+var featuresIdDone = undefined;
+//var connectionString = "postgres://postgres:postgres@localhost/vfr_instalace2";
+pg.connect("postgres://postgres:postgres@localhost/vfr_instalace2", function(err, client, done) {
+    if (err) {
+      console.log('Error v pool conn: ', err);
+    }
+
+  featuresIdClient = client;
+  featuresIdDone = done;
+    //this_.init();
+});
+
+
 app.get('/se/getFeaturesIdInBboxForLayers', function(req, res){
-  handleGetFeaturesIdInBboxForLayers(req, res);
+  //handleGetFeaturesIdInBboxForLayers(req, res, featuresIdClient);
+  new getFeaturesId(req, res, featuresIdClient, featuresIdDone);
 });
 
 
@@ -310,8 +330,30 @@ var queryGeometryInLayers = function(client, layerName, idColumn, ids, geomRow, 
   });
 
 };
-  
-app.get('/se/getGeometryInLayers', function(req, res) {
+
+
+var clientGetGeom = undefined;
+var getGeometry = require('./new-get-geometry.js');
+
+var connectionString = "postgres://postgres:postgres@localhost/" + 'vfr_instalace2';
+pg.connect(connectionString, function(err, client, done) {
+    if (err) {
+      console.log('err2', err);
+    }
+
+  clientGetGeom = client;
+    //this_.init();
+});
+
+/*
+ * Request example: http://localhost:9001/se/renderTile?x=1&y=2&z=3
+ */
+app.get('/se/getGeometryInLayers', function(req, res){
+  new getGeometry(req, res, clientGetGeom);
+});
+
+
+app.get('/se/getGeometryInLayersOLD', function(req, res) {
     var feature_collection = {
         "type": "FeatureCollection",
         "features": []
@@ -578,7 +620,7 @@ var queryFeaturesById = function(client, layerName, idColumn, ids, callback){
 }
 
 
-app.get('/se/getFeaturesByIdinLayers', function(req, res){
+app.get('/se/getFeaturesByIdinLayersOLD', function(req, res){
   var feature_collection = {
       "type": "FeatureCollection",
         "features": []
@@ -629,6 +671,25 @@ app.get('/se/getFeaturesByIdinLayers', function(req, res){
   });
 
 });
+
+
+
+
+var getFeaturesByIdClient = undefined;
+var getFeaturesByIdddd = require('./get-features-by-id.js');
+
+var connectionString = "postgres://postgres:postgres@localhost/" + 'vfr_instalace2';
+pg.connect(connectionString, function(err, client, done) {
+    if (err) {
+      console.log('err2', err);
+    }
+  getFeaturesByIdClient = client;
+});
+
+app.get('/se/getFeaturesByIdinLayers', function(req, res){
+  new getFeaturesByIdddd(req, res, getFeaturesByIdClient);
+});
+
 
 app.get('/se/getTiledGeomInBBOX', function(req, res){
   var extent = req.param('extent'),
@@ -766,6 +827,18 @@ var nano = require('nano')('http://localhost:5984');
 var NT = require('./new-tile-shared-connection.js');
 
 
+var vtClient = undefined;
+//var connectionString = "postgres://postgres:postgres@localhost/vfr_instalace2";
+pg.connect("postgres://postgres:postgres@localhost/vfr_instalace2", function(err, client, done) {
+    if (err) {
+      console.log('Error v pool conn: ', err);
+    }
+
+  vtClient = client;
+    //this_.init();
+});
+
+
 /*
  * Request example: http://localhost:9001/se/renderTile?x=1&y=2&z=3
  */
@@ -788,7 +861,7 @@ app.post('/saveStatToDB', bodyParser.json(), function (req, res) {
   var dbName = dbName = req.param('dbName');
   
   if(!dbName){
-      dbName = 'geojson_measure_node_cache';
+      dbName = 'geojson_measure_node_cache_pool';
   }
   var results_db = nano.db.use(dbName);
 
