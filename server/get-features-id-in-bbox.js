@@ -32,6 +32,12 @@ var getFeaturesIdInBbox = function(req, res, client, done){
   var connectionString = "postgres://postgres:postgres@localhost/" + this.dbName;
 
   if(client) {
+    this.client = client;
+    this.done = done;
+    this.sharedPool = true;
+    this.init();
+  } else {
+    this.sharedPool = false;
     pg.connect(connectionString, function(err, client, done) {
       if (err) {
         console.log('err2', err);
@@ -41,11 +47,6 @@ var getFeaturesIdInBbox = function(req, res, client, done){
       this_.done = done;
       this_.init();
     });
-
-  } else {
-    this.client = client;
-    this.done = done;
-    this.init();
   }  
 };
 
@@ -63,7 +64,9 @@ getFeaturesIdInBbox.prototype.callback = function(){
     this.existCountRequests--;
     if(this.existCountRequests == 0){
       this.res.json({ "layers" : this.results, "extent": this.extent, "level": this.req.param('level') });
-      this.done();
+      if(!this.sharedPool){
+        this.done();
+      }
     }
 };
 

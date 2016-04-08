@@ -29,7 +29,7 @@ var getGeometryInLayers = function(req, res, client){
 
 	this.extentArea = (this.extent[2] - this.extent[0]) * (this.extent[3] - this.extent[1]);
 	this.layerNames = Object.keys(this.idsInLayer);
-	this.layersToLoad = 0;//layerNames.length;
+	this.layersToLoad = this.layerNames.length;
 	//layersToLoadSum = layersToLoadSum + layersToLoad;
 	this.ready = false;
 
@@ -38,12 +38,12 @@ var getGeometryInLayers = function(req, res, client){
 		this.sharedPool = true;
 		this.init();
 	} else {	
+		this.sharedPool = false;
 		var connectionString = "postgres://postgres:postgres@localhost/" + this.dbName;
 		pg.connect(connectionString, function(err, client, done) {
 			if (err) {
 				console.log('err2', err);
 			}
-			this.sharedPool = false;
 			this_.client = client;
 			this_.done = done;
 			this_.init();
@@ -57,7 +57,7 @@ getGeometryInLayers.prototype.init = function(){
 			this.ready = true;
 		}
 
-		this.layersToLoad++;
+		//this.layersToLoad++;
 
 		if (this.idsInLayer[this.layerNames[i]] != '') {
 			this.queryGeometryInLayers(this.layerNames[i], this.idsInLayer[this.layerNames[i]]);
@@ -161,6 +161,7 @@ getGeometryInLayers.prototype.queryGeometryInLayersCallback = function(features)
 		});
 
 		if(!this.sharedPool){
+			//console.log('done');
     		this.done();
     	}
 		

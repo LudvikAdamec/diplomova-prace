@@ -224,7 +224,7 @@ spatialIndexLoader.prototype.callback = function(responseFeatures, level, decrea
                 if (responseFeatures[j].properties.original_geom) {
                     this.addToOriginal_features_store(responseFeatures[j]);
                 } else {
-                    this.mergeTool.addFeaturesOnLevel(responseFeatures[j], level);
+                    //this.mergeTool.addFeaturesOnLevel(responseFeatures[j], level);
                     this.mergeTool.addFeaturesOnLevelInLayer(responseFeatures[j], level, layerName)
                 }
 
@@ -234,7 +234,7 @@ spatialIndexLoader.prototype.callback = function(responseFeatures, level, decrea
     }
     
     //merging and adding features to map
-    if (this.loaderFunctionCount < 3 && this.loadGeometriesCount < 3 && this.loadFeaturesCount == 0 ) {
+    if (this.loaderFunctionCount < 1 && this.loadGeometriesCount < 1 && this.loadFeaturesCount == 0 ) {
         this.timeFinish = new Date();
         this.loadStoredFeatures();
         

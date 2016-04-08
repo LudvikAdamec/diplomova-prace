@@ -22,7 +22,26 @@ var convertGeoToTopo = function (feature_collection) {
 
 var statistics = require('./statistics.js');
 
-//console.log(statistics.loadDatabaseDocs('geojson_measure_node_cache'));
+if(true == true){
+  //console.log(statistics.loadDatabaseDocs('results_vt_no_pool'));
+  //console.log(statistics.loadDatabaseDocs('results_si_no_pool'));
+  //console.log(statistics.loadDatabaseDocs('results_vt_pool'));
+  //console.log(statistics.loadDatabaseDocs('results_si_pool'));
+  //console.log(statistics.loadDatabaseDocs('results_si_pool2'));
+  //console.log(statistics.loadDatabaseDocs('results_si_no_pool2'));2x
+  //console.log(statistics.loadDatabaseDocs('results_si_no_pool3'));4x
+  //console.log(statistics.loadDatabaseDocs('results_si_no_pool4'));//8x
+  //console.log(statistics.loadDatabaseDocs('results_si_no_pool5'));//80000x
+  //console.log(statistics.loadDatabaseDocs('results_si_no_pool6'))//0.01x
+  
+  /*
+  console.log(statistics.loadDatabaseDocs('results_si_no_pool7'));//2x
+  console.log(statistics.loadDatabaseDocs('results_si_no_pool8'));//4x
+  console.log(statistics.loadDatabaseDocs('results_si_no_pool9'));//8x
+  console.log(statistics.loadDatabaseDocs('results_si_no_pool10'));//80000x
+  console.log(statistics.loadDatabaseDocs('results_si_no_pool11'))//0.01x
+  */
+}
 
 //memwatch.on('stats', function(stats) {console.log(stats)});
 
@@ -111,17 +130,20 @@ pg.connect(connectionString, function(err, client, done) {
 
 var getFeaturesIdInBbox  = require('./get-features-id-in-bbox.js');
 app.get('/getFeaturesIdInBbox', function(req, res){
-  new getFeaturesIdInBbox(req, res, getFeaturesIdInBboxClient, featuresIdDone);
+  new getFeaturesIdInBbox(req, res);
+  //new getFeaturesIdInBbox(req, res, getFeaturesIdInBboxClient, featuresIdDone);
 });
 
 var getGeometryInLayers = require('./get-geometry-in-layers.js');
 app.get('/getGeometryInLayers', function(req, res){
-  new getGeometryInLayers(req, res, clientGetGeom);
+  new getGeometryInLayers(req, res);
+  //new getGeometryInLayers(req, res, clientGetGeom);
 });
 
 var getFeaturesById = require('./get-features-by-id.js');
 app.get('/getFeaturesByIdinLayers', function(req, res){
-  new getFeaturesById(req, res, getFeaturesByIdClient);
+  new getFeaturesById(req, res);
+  //new getFeaturesById(req, res, getFeaturesByIdClient);
 });
 
 /**************************************************************************************************/
@@ -148,6 +170,7 @@ pg.connect("postgres://postgres:postgres@localhost/vfr_instalace2", function(err
 var renderTile = require('./render-tile.js');
 app.get('/se/renderTile', function(req, res){
   new renderTile(req, res, false);
+  //new renderTile(req, res, false, renderTileClient);
 });
 
 /*
@@ -171,6 +194,9 @@ app.post('/saveStatToDB', bodyParser.json(), function (req, res) {
   if(!dbName){
       dbName = 'geojson_measure_node_cache_pool';
   }
+
+  dbName = 'results_si_no_pool11';
+  dbName = 'results_vt_no_pool2';
   var results_db = nano.db.use(dbName);
 
   results_db.insert(req.body, function(err, body){

@@ -107,6 +107,11 @@ getFeaturesById.prototype.callback = function(features){
   if (this.layersToLoad == 0) {
     this.res.json({ "FeatureCollection" : this.feature_collection, "ids": this.idsInLayer, "level": this.req.param('level') });    
     
+    if(!this.sharedPool){
+      //console.log('done');
+      this.done();
+    }
+    
     //client.end();        
   }
 };
