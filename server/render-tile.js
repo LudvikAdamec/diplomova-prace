@@ -36,7 +36,7 @@ var renderTile = function(req, res, loadTopojsonFormat, client){
 	};
 
 	this.ty = TGrid.gyToTy(this.xyz.y, this.xyz.z);
-	this.bound = TGrid.TileLatLonBounds(this.xyz.x, this.ty, this.xyz.z);
+	this.bound = TGrid.TileLatLonBounds(this.xyz.x, this.ty + 1, this.xyz.z);
 	this.id = this.xyz.x + '-' + this.xyz.y + '-' + this.xyz.z;
 
 	this.existRowCache = {};

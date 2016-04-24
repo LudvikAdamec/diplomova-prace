@@ -15,7 +15,7 @@ goog.require('goog.array');
  */
 measureTool = function(params) {
     this.measuringResults = [];
-    this.measuringProperties = ['init', 'panLeft', 'zoomin', 'zoomin', 'zoomout3x'];
+    this.measuringProperties = ['init', 'panLeft', 'zoomin', 'zoomin', 'zoomout4x', 'zoomout1x'];
     this.dbName = params.db;
 }
 
@@ -30,6 +30,11 @@ measureTool.prototype.panMap = function(factor, toSide) {
 
     if (toSide == 'left') {
         var newCenter = [currentCenter[0] - (factor * width), currentCenter[1]];
+        map.getView().setCenter(newCenter);
+        console.log("moved");
+    
+    } else if (toSide == 'left') {
+        var newCenter = [currentCenter[0] + (factor * width), currentCenter[1]];
         map.getView().setCenter(newCenter);
         console.log("moved");
     } else {
@@ -79,19 +84,19 @@ measureTool.prototype.measureNextProperty = function() {
         } else {
             switch (this.measuringResults.length) {
                 case 1:
-                    this.zoomin(1);
+                    this.panMap(1, 'left');
                     break;
                 case 2:
-                    this.panMap(1, 'left');
+                    this.zoomin(1);
                     break;
                 case 3:
                     this.zoomin(1);
                     break;
                 case 4:
-                    this.zoomin(1);
+                    this.zoomout(4);
                     break;
                 case 5:
-                    this.zoomout(3);
+                    this.zoomout(1);
                     break;
             }
         }

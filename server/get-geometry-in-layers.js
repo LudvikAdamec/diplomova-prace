@@ -2,10 +2,11 @@
 var nano = require('nano')('http://localhost:5984');
 var pg = require('pg');
 
-var getGeometryInLayers = function(req, res, client){
+var getGeometryInLayers = function(req, res, client, clipingFactor){
 	var this_ = this;
 	this.req = req;
 	this.res = res;
+    this.clipingFactor = clipingFactor;
 
 	this.feature_collection = {
 		"type": "FeatureCollection",
@@ -71,6 +72,9 @@ getGeometryInLayers.prototype.queryGeometryInLayers = function(layerName, ids){
 	var this_ = this;
 	var queryString;
 	var features = [];
+    
+       // console.log("clipingFactor", this.clipingFactor);
+
 	if(this.clipBig != "true"){
 		/*queryString = 'SELECT ' + idColumn + ' AS id, ' + 
 						"ST_AsGeoJSON(' + geomRow + ', 5) AS geom, " +
@@ -85,18 +89,18 @@ getGeometryInLayers.prototype.queryGeometryInLayers = function(layerName, ids){
 		"SELECT " + 
 		this.idColumn + " AS id, " +
 		"ST_AsGeoJSON(" + this.geomRow + ", 6) AS geom, " +
-		"CASE   WHEN ST_Area(" + this.geomRow + " ) > " + (this.extentArea * 2) + 
+		"CASE   WHEN area > " + (this.extentArea * this.clipingFactor) + 
 		" THEN ST_AsGeoJSON(ST_Intersection( " + envelop + ", " + this.geomRow + " ), 6)" +
 		" ELSE 'null'" +
 		" END AS clipped_geom, " + 
-		"CASE   WHEN ST_Area(" + this.geomRow + " ) <= " + (this.extentArea * 2) + 
+		"CASE   WHEN area <= " + (this.extentArea * this.clipingFactor) + 
 		" THEN " + "ST_AsGeoJSON(" + this.geomRow + ", 6 ) "  +
 		" ELSE 'null' " +
 		" END AS original_geom " +
 		"FROM " + layerName + " " +
 		"WHERE " + this.idColumn + " IN(" + ids + ")";
 	}  
-
+            
 	var query = this.client.query(queryString, function(err, content){
 		if(err){
 			console.log('err3',err);

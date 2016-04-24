@@ -48,12 +48,14 @@ Statistics.calculateCompleteLoadingTimes = function(results){
         var sumLoad = result.init.loading + 
             result.panLeft.loading + 
             result.zoomin.loading + 
-            result.zoomout3x.loading;
+            result.zoomout4x.loading +
+            result.zoomout1x.loading;
         
         var sumMerge = result.init.merging + 
             result.panLeft.merging + 
             result.zoomin.merging + 
-            result.zoomout3x.merging;
+            result.zoomout4x.merging +
+            result.zoomout1x.merging;
         
         result.sum = {
             "loading": sumLoad,
@@ -83,7 +85,7 @@ Statistics.sortIds = function(results){
 
 
 Statistics.deleteExtremes = function(sorted, results){
-    var toDeleteCount = sorted.length - 50;
+    var toDeleteCount = sorted.length - 8;
     if(toDeleteCount > 0){
         var deletedCount = toDeleteCount / 2;
         sorted.splice(0, deletedCount);
@@ -133,22 +135,26 @@ Statistics.loadDatabaseDocs = function(dbName) {
             "average_panLeft_merging": this_.calculateAverages(results_cleaned, 'panLeft', 'merging'),
             "average_zoomin_loading": this_.calculateAverages(results_cleaned, 'zoomin', 'loading'),
             "average_zoomin_merging": this_.calculateAverages(results_cleaned, 'zoomin', 'merging'),
-            "average_zoomout3x_loading": this_.calculateAverages(results_cleaned, 'zoomout3x', 'loading'),
-            "average_zoomout3x_merging": this_.calculateAverages(results_cleaned, 'zoomout3x', 'merging')
+            "average_zoomout4x_loading": this_.calculateAverages(results_cleaned, 'zoomout4x', 'loading'),
+            "average_zoomout4x_merging": this_.calculateAverages(results_cleaned, 'zoomout4x', 'merging'),
+            "average_zoomout1x_loading": this_.calculateAverages(results_cleaned, 'zoomout1x', 'loading'),
+            "average_zoomout1x_merging": this_.calculateAverages(results_cleaned, 'zoomout1x', 'merging')        
         };
 
         calculation_results["average_sum_loading"] = (
             calculation_results.average_init_loading + 
             calculation_results.average_panLeft_loading + 
             calculation_results.average_zoomin_loading +
-            calculation_results.average_zoomout3x_loading
+            calculation_results.average_zoomout4x_loading +
+            calculation_results.average_zoomout1x_loading
         );
 
         calculation_results["average_sum_merging"] = (
             calculation_results.average_init_merging + 
             calculation_results.average_panLeft_merging + 
             calculation_results.average_zoomin_merging +
-            calculation_results.average_zoomout3x_merging
+            calculation_results.average_zoomout4x_merging + 
+            calculation_results.average_zoomout1x_merging
         );
 
         this_.saveCalculatedResults(calculation_results, dbName);

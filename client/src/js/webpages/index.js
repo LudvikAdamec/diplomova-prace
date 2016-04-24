@@ -213,15 +213,16 @@ var map;
     var source = this;
     loader.loaderFunction(extent, resolution, projection, source);
   };
-
-  if(true == false){
-    var vectorSource = new ol.source.MultiLevelVector({
+  
+  var vectorSource;
+  if(true == true){
+    vectorSource = new ol.source.MultiLevelVector({
       loader: vtLoader.loaderFunction, // loaderFunctionVT,
       strategy: ol.loadingstrategy.tile(tileGrid),
       view: map.getView()
     });
   } else {
-    var vectorSource = new ol.source.MultiLevelVector({
+    vectorSource = new ol.source.MultiLevelVector({
       loader: spatialLoaderFunction, // loaderFunctionVT,
       strategy: ol.loadingstrategy.tile(tileGrid),
       view: map.getView()
@@ -279,7 +280,8 @@ var map;
    */
   vectorSource.strategy_ = function (extent, resolution) {
     var newExtent = getExtentWithFactor(0.2, extent);
-
+    
+    newExtent = extent;
     var z = tileGrid.getZForResolution(resolution);
     var tileRange = tileGrid.getTileRangeForExtentAndZ(newExtent, z);
     var extents = [];

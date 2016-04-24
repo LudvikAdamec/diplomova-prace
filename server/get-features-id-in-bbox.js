@@ -2,11 +2,12 @@
 var nano = require('nano')('http://localhost:5984');
 var pg = require('pg');
 
-var getFeaturesIdInBbox = function(req, res, client, done){
+var getFeaturesIdInBbox = function(req, res, client, done, clipingFactor){
   var this_ = this;
   this.req = req;
   this.res = res;
-
+  this.clipingFactor = clipingFactor;
+  
   this.extent = req.param('extent');
   this.layers = req.param('layers');
   this.dbName = req.param('db');
@@ -75,12 +76,24 @@ getFeaturesIdInBbox.prototype.existRowCallback = function(exist, layerName){
 
   var queryString;
   if(exist){
-      if(this.clipBig == "true"){
-        var extentArea = (this.extentConverted[2] - this.extentConverted[0]) * (this.extentConverted[3] - this.extentConverted[1]);
+      
+          //console.log("clipingFactor", this.clipingFactor);
 
+      if(this.clipBig == "true"){
+          
+        var extentArea = (this.extentConverted[2] - this.extentConverted[0]) * (this.extentConverted[3] - this.extentConverted[1]);
+        /*
+        console.log("extent", this.extentConverted);
+        console.log('-----------------------');
+        console.log('extentArea:', extentArea);
+        console.log('2x:', extentArea * 2);
+        console.log('4x:', extentArea * 4);
+        console.log('8x:', extentArea * 8);
+        */
+        
         //todo: predelat efektivne na intersects
         queryString = ' SELECT ' + this.idColumn + ', ' +
-         ' CASE   WHEN area > ' + (extentArea * 2) + ' THEN 1 ELSE 0 END AS needclip ' +
+         ' CASE   WHEN area > ' + (extentArea * this.clipingFactor) + ' THEN 1 ELSE 0 END AS needclip ' +
          ' FROM ' + layerName + 
          ' WHERE ' + layerName + '.' + this.geomRow + '&&' + this.envelop  ;
 
@@ -90,6 +103,8 @@ getFeaturesIdInBbox.prototype.existRowCallback = function(exist, layerName){
           ' FROM ' + layerName + 
           ' WHERE ' + layerName + '.' + this.geomRow + '&&' + this.envelop ;
       }
+      
+      //console.log(queryString);
       
       var query = this.client.query(queryString, function(err, content){
         if(err){

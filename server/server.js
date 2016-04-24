@@ -41,6 +41,22 @@ if(true == true){
   console.log(statistics.loadDatabaseDocs('results_si_no_pool10'));//80000x
   console.log(statistics.loadDatabaseDocs('results_si_no_pool11'))//0.01x
   */
+  
+   //console.log(statistics.loadDatabaseDocs('results_si_no_pool12'))//2x
+
+   //console.log(statistics.loadDatabaseDocs('vt_1'));
+   //console.log(statistics.loadDatabaseDocs('si_2x_1'));
+   //console.log(statistics.loadDatabaseDocs('si_4x_1'));
+   //console.log(statistics.loadDatabaseDocs('si_8x_1'));
+   //console.log(statistics.loadDatabaseDocs('si_80000x_1'));    
+   //console.log(statistics.loadDatabaseDocs('si_001x_1'));              
+   
+    //console.log(statistics.loadDatabaseDocs('vt_4'));
+    //console.log(statistics.loadDatabaseDocs('si_2x_4'));
+    //console.log(statistics.loadDatabaseDocs('si_4x_4'));
+    //console.log(statistics.loadDatabaseDocs('si_8x_4'));
+    //console.log(statistics.loadDatabaseDocs('si_80000x_4'));    
+    //console.log(statistics.loadDatabaseDocs('si_001x_4'));   
 }
 
 //memwatch.on('stats', function(stats) {console.log(stats)});
@@ -127,16 +143,16 @@ pg.connect(connectionString, function(err, client, done) {
 });
 
 
-
+var clipFactor = 2;
 var getFeaturesIdInBbox  = require('./get-features-id-in-bbox.js');
 app.get('/getFeaturesIdInBbox', function(req, res){
-  new getFeaturesIdInBbox(req, res);
+  new getFeaturesIdInBbox(req, res, undefined, undefined, clipFactor);
   //new getFeaturesIdInBbox(req, res, getFeaturesIdInBboxClient, featuresIdDone);
 });
 
 var getGeometryInLayers = require('./get-geometry-in-layers.js');
 app.get('/getGeometryInLayers', function(req, res){
-  new getGeometryInLayers(req, res);
+  new getGeometryInLayers(req, res, undefined, clipFactor);
   //new getGeometryInLayers(req, res, clientGetGeom);
 });
 
@@ -181,12 +197,20 @@ app.get('/se/topojsonTile', function(req, res){
 });
 /**************************************************************************************************/
 
+var automatizeSIMeasuring = false;
+var measure_to_db = ['si_2x_4', 'si_4x_4', 'si_8x_4', 'si_80000x_4', 'si_001x_4'];
+var measure_to_db = ['throttling_mereni', 'throttling_mereni', 'throttling_mereni', 'throttling_mereni', 'throttling_mereni'];
+var factors = [2, 4, 8, 80000, 0.01];
 
+var saveStatToDBCounter = 0;
+
+var currentMeasureIndex = 0;
 
 
 /******************************** STATISTICS SAVING ***********************************************/
 var nano = require('nano')('http://localhost:5984');
 app.post('/saveStatToDB', bodyParser.json(), function (req, res) {
+  
   if (!req.body) return res.status(400).end();
   //var results_db = nano.db.use('topojson_measure_node_cache');
   var dbName = dbName = req.param('dbName');
@@ -195,8 +219,15 @@ app.post('/saveStatToDB', bodyParser.json(), function (req, res) {
       dbName = 'geojson_measure_node_cache_pool';
   }
 
-  dbName = 'results_si_no_pool11';
-  dbName = 'results_vt_no_pool2';
+  //dbName = 'results_si_no_pool12';
+  //dbName = 'vt_4';
+  dbName = 'tets';
+  
+  if(automatizeSIMeasuring){
+      dbName = measure_to_db[currentMeasureIndex]
+  }
+  
+  console.log(req.body);
   var results_db = nano.db.use(dbName);
 
   results_db.insert(req.body, function(err, body){
@@ -207,6 +238,17 @@ app.post('/saveStatToDB', bodyParser.json(), function (req, res) {
       return res.status(200).end();
     }
   });
+  
+  if(automatizeSIMeasuring){
+      saveStatToDBCounter++;
+  }
+  
+   if(saveStatToDBCounter > 1 && automatizeSIMeasuring){    
+      currentMeasureIndex++;
+      saveStatToDBCounter = 0;
+      clipFactor = factors[currentMeasureIndex];
+  } 
+  
 });
 /**************************************************************************************************/
 

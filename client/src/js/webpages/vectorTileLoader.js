@@ -225,7 +225,12 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
           this_.measuringTool.addResults((mergingStarted - timeStart), totalMergeTime);
           timeStart = new Date();
           totalMergeTime = 0;
-          this_.measuringTool.measureNextProperty();
+          
+          setTimeout(function(){
+                this_.measuringTool.measureNextProperty();
+          }, 1000);
+          
+          //this_.measuringTool.measureNextProperty();
       } else {
           timeStart = new Date();
           totalMergeTime = 0;
@@ -407,7 +412,9 @@ vectorTileLoader.prototype.load = function(extent, level, projection, callback, 
       data: dataXYZ,
       datatype: 'json',
       success: function(data, status, xhr){
-        this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
+                  console.log(xhr.getResponseHeader('Content-Length'));
+
+        this_.loadedContentSize += (xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
         this_.remaining--;
         if(loadTopojsonFormat){
           callback(data.json, undefined, 'first', "DF_ID", data.xyz.z, this_);

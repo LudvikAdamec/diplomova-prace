@@ -77,7 +77,7 @@ var restartTimer;
 function startTimer() {
     restartTimer = setTimeout(function(){
          location.reload(); 
-   }, 80000);
+   }, 2000000);
 }
 function stopTimer() {
     clearTimeout(restartTimer);
@@ -143,7 +143,7 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
     datatype: 'json',
     success: function(data, status, xhr){
       this_.loaderFunctionCount--;
-      this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
+      this_.loadedContentSize += (xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
       this_.loaderSuccessMultipleLayers(data, function(responseFeatures, level, decrease){
         this_.callback(responseFeatures, level, decrease, "DF_ID", targetSource);
       });
@@ -198,6 +198,7 @@ spatialIndexLoader.prototype.addToOriginal_features_store = function(feature){
 spatialIndexLoader.prototype.callback = function(responseFeatures, level, decrease, message, source) {
   stopTimer();
   startTimer();
+  var this_ = this;
   
     if (decrease) {
         this.loadingExtents--;
@@ -276,7 +277,12 @@ spatialIndexLoader.prototype.callback = function(responseFeatures, level, decrea
             this.measuringTool.addResults((this.timeFinish - this.timeStart), totalMergeTime, contentSize);
             this.timeStart = new Date();
             totalMergeTime = 0;
-            this.measuringTool.measureNextProperty();
+            
+            //this_.measuringTool.measureNextProperty();
+            
+            setTimeout(function(){
+                this_.measuringTool.measureNextProperty();
+            }, 15000);
         }
     } 
 };
@@ -365,7 +371,7 @@ spatialIndexLoader.prototype.loadGeometriesMultipleLayers = function(idToDownloa
     datatype: 'json',
     success: function(data, status, xhr){
       this_.loadGeometriesCount--;
-      this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
+      this_.loadedContentSize += (xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
       callback(data.FeatureCollection.features, data.level, false, "DS_G");
     },
     error:function(er){
@@ -418,10 +424,9 @@ spatialIndexLoader.prototype.loadFeaturesMultipleLayers = function(idToDownload,
     datatype: 'json',
     success: function(data, status, xhr){
       this_.loadFeaturesCount--;
+      this_.loadedContentSize += (xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
       idToDownload.geometries = idToDownload.features;
       this_.loadGeometriesMultipleLayers(idToDownload, data.level, extent, callback, this_);
-      this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
-
       // prazdne [] nebo pokud obsahuje features, tak prida uplne poprve 
       //feature vcetne atributu ale s prazdnou geometrii (nejde nacist geojson feature bez property geometry)
       callback(data.FeatureCollection.features, data.level, true, "DS_F");      
