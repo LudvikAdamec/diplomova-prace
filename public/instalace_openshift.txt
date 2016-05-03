@@ -1,0 +1,45 @@
+-- Database: vfr_instalace2
+
+-- DROP DATABASE vfr_instalace2;
+
+CREATE DATABASE vfr_instalace2
+  WITH OWNER = postgres
+       ENCODING = 'UTF8'
+       TABLESPACE = pg_default
+       LC_COLLATE = 'en_US.UTF-8'
+       LC_CTYPE = 'en_US.UTF-8'
+       CONNECTION LIMIT = -1;
+
+
+
+/////connect to db vfr_instalace2
+CREATE EXTENSION postgis;
+
+INSERT into spatial_ref_sys (srid, auth_name, auth_srid, proj4text, srtext) values ( 5514, 'EPSG', 5514, '+proj=krovak +lat_0=49.5 +lon_0=24.83333333333333 +alpha=30.28813972222222 +k=0.9999 +x_0=0 +y_0=0 +ellps=bessel +towgs84=589,76,480,0,0,0,0 +units=m +no_defs ', 'PROJCS["S-JTSK / Krovak East North",GEOGCS["S-JTSK",DATUM["System_Jednotne_Trigonometricke_Site_Katastralni",SPHEROID["Bessel 1841",6377397.155,299.1528128,AUTHORITY["EPSG","7004"]],TOWGS84[589,76,480,0,0,0,0],AUTHORITY["EPSG","6156"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4156"]],PROJECTION["Krovak"],PARAMETER["latitude_of_center",49.5],PARAMETER["longitude_of_center",24.83333333333333],PARAMETER["azimuth",30.28813972222222],PARAMETER["pseudo_standard_parallel_1",78.5],PARAMETER["scale_factor",0.9999],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",EAST],AXIS["Y",NORTH],AUTHORITY["EPSG","5514"]]');
+
+
+
+
+
+
+Webová kartografie se v posledních letech dynamicky rozvíjí, což souvisí s rozvojem všech
+odvětví navázaných na rozvoj internetu a informačních technologií. Rozvoj internetu sebou
+přinesl i velké množství dat, které je možné vizualizovat v prostoru. Vzhledem k těmto
+změnám se mění i webová kartografie, která se od prezentace jednoduchých statických map,
+přesunula přes interaktivní mapy využívající zejména dat ve formě rastru až k inovativním
+aplikacím a mapám, kde je datový zdroj často ve formě vektorových dat.
+Vektorová data ve webových mapách přináší rozšířené možnosti pro interakci a vi-
+zualizaci, která se může dynamicky přizpůsobit každému uživateli, podle jeho aktuálních
+potřeb. Vektorová data přinášejí široké možnosti do webové kartografie, ale zároveň přichá-
+zejí i s problémy, které je nutné vyřešit. Jedním ze zásadních je efektivní přenos dat, který
+zajistí rychlé zobrazení dat, což je možné dosáhnout například způsoby minimalizujícími
+objem přenášených dat ze serveru na klienta. Jednou z metod, která se snaží dosáhnout
+efektivního přenosu dat je metoda vektorových dlaždic, kterou se zabývá tato práce.
+Cílem práce je popsat techniku vektorových dlaždic, srovnat ji s jinými přístupy jako
+je WFS, prostorovou indexovací službou nebo metodou rastrových dlaždic. Na základě
+této rešerše budou navrženy optimalizace a úpravy pro vektorové dlaždice a prostorovou
+indexovací službu, které by měli zlepšit použitelnost metod, zejména po stránce výkonnosti
+aplikace. Navržené změny budou implementovány ve webové aplikaci, která jako datový
+zdroj bude používat data z RUIAN. Nad vytvořenou aplikací bude nakonec provedeno
+automatizované měření, které porovná výkonnost navržených změn s původním návrhem
+pro obě zmíněné metody.

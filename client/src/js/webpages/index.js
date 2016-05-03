@@ -31,6 +31,8 @@ goog.require('vectorTileLoader');
 goog.require('mergeTools');
 goog.require('logInfo');
 
+goog.require('ol.Overlay.FeaturePopup');
+
 
 goog.require('ol.source.MultiLevelVector');
 
@@ -101,11 +103,8 @@ var map;
     maxResolution: 310,
     style: new ol.style.Style({
       stroke: new ol.style.Stroke({
-        color: 'green',
-        width: 0.3
-      }),
-      fill: new ol.style.Fill({
-        color: 'rgba(150, 0, 55, 0.3)'
+        color: 'rgba(27,50,95, 1)',
+        width: 1.5
       })
     })
   });
@@ -118,11 +117,8 @@ var map;
     source: okresySource,
     style: new ol.style.Style({
       stroke: new ol.style.Stroke({
-        color: 'red',
-        width: 1.5
-      }),
-      fill: new ol.style.Fill({
-        color: 'rgba(100, 100, 155, 0.15)'
+        color: 'rgba(237,81,54, 1)',// 'rgba(245,20,20, 1)',
+        width: 2.5
       })
     })
   });
@@ -136,11 +132,11 @@ var map;
     //minResolution: 310,
     style: new ol.style.Style({
       stroke: new ol.style.Stroke({
-        color: 'blue',
-        width: 2.7
+        color: 'rgba(27,50,95,1)',
+        width: 5.7
       }),
       fill: new ol.style.Fill({
-        color: 'rgba(10, 10, 155, 0.15)'
+        color: 'rgba(233,242,249, 0.8)'
       })
     })
   });
@@ -156,8 +152,11 @@ var map;
     maxResolution: 310,
     style: new ol.style.Style({
       stroke: new ol.style.Stroke({
-        color: 'black',
-        width: 0.2
+        color: 'white',
+        width: 1,
+      }),
+      fill: new ol.style.Fill({
+        color: 'rgba(156,196,228, 1)'
       })
     })
   });
@@ -178,12 +177,16 @@ var map;
     })
   });
   
+  krajeL.set('name', 'Kraje');
   map.addLayer(krajeL);
-  map.addLayer(okresyL);
-  map.addLayer(obceL);
+  katastralniuzemiL.set('name', 'Katastralniuzemi');
   map.addLayer(katastralniuzemiL);
+  obceL.set('name', 'Obce');
+  map.addLayer(obceL);
+  parcelyL.set('name', 'Parcely');
   map.addLayer(parcelyL);
-
+  okresyL.set('name', 'Okresy');
+  map.addLayer(okresyL);
 
   /**
    * parameters used ib spatialIndexLoader (make request on server from this parameters)
@@ -195,7 +198,7 @@ var map;
       dbname : "vfr_instalace2",
       geomColumn : "geometry_1",
       idColumn : "ogc_fid",
-      url : "http://localhost:9001/"
+      url : "http://ruian-lu2.rhcloud.com/" //"http://localhost:9001/"
     },
     layers: {
       obce: obceSource,
@@ -229,6 +232,16 @@ var map;
     });
   }
 
+    var hoverStyle = new ol.style.Style({
+        stroke: new ol.style.Stroke({
+            color: 'rgba(255, 0, 0, 1)',
+            width: 2
+        }),
+        fill: new ol.style.Fill({
+            color: 'rgba(255, 25, 25, 0.7)'
+        })
+    });
+
   var vector = new ol.layer.Vector({
     source: vectorSource,
     style: new ol.style.Style({
@@ -240,20 +253,104 @@ var map;
         color: 'rgba(100, 0, 255, 0.5)'
       })
     })
-  });
+    });
 
-  map.addLayer(vector);
- 
-  map.on('click', function(evt) {
-    var features = [];
-    var feature = map.forEachFeatureAtPixel(evt.pixel,
-      function(feature, layer) {
-        features.push(feature);
-      });
-    if (features) {
-      console.log("features on position: ", features);
-    }
-  });
+    map.addLayer(vector);
+
+    /*map.on('click', function(evt) {
+        var features = [];
+        var feature = map.forEachFeatureAtPixel(evt.pixel,
+            function(feature, layer) {
+                features.push(feature);
+            });
+        if (features) {
+            console.log("features on position: ", features);
+        }
+    });*/
+    
+    
+    
+
+
+    var findFeatureLayer = function(map, layer, pixel) {
+        var f;
+        map.forEachFeatureAtPixel(pixel, function(feature, actualLyr) {
+            f = feature;
+        }, this, function(lyr) {
+            if(lyr.get('name')){
+                //return true;
+                return lyr.get('name') === layer.get('name');
+            }
+        });
+        return f;
+    };
+
+    var onFeatureClick = function(evt, popup, map) {
+        popup.hide();
+
+        var i = 0;
+        var features = [];
+        var firstFeature;
+        var fromLayer;
+        var layers = map.getLayers().array_;
+        var k = layers.length - 1;
+
+        do {
+            firstFeature = findFeatureLayer(map, layers[k], evt.pixel);
+            if (firstFeature !== undefined) {
+                fromLayer = layers[k];
+            }
+            k--;
+        } while (k > 0 && firstFeature === undefined);
+
+
+        if (firstFeature) {
+            var feature = firstFeature,
+                properties = feature.getKeys(),
+                values = feature.getProperties();
+
+            var headerLabel = '<strong>Vrstva: ' + fromLayer.get('name') + '</strong>';
+            var ulContent = "";
+
+            popup.headerLabel.innerHTML = headerLabel;
+            
+            var attributes = firstFeature.getKeys();
+
+            for (i = 0; i < attributes.length; i++) {
+                var attribute = firstFeature.get(attributes[i]);
+                                
+                var liContent = '<li class="property-item">' +
+                                   '<div class="property-label">' +  attributes[i] + '</div>' +
+                                    '<div class="property-value">' + attribute + '</div>' +
+                                '</li>'; 
+                
+                ulContent = ulContent + liContent;
+            }
+            
+            var popupContent = '<ul class="property-list">' + ulContent + '<ul>';
+                
+            var geometry = feature.getGeometry();
+            if (geometry.getType() == "Point") {
+                popup.show(geometry.getCoordinates(), popupContent);
+            } else {
+                popup.show(evt.coordinate, popupContent);
+            }
+
+        }
+    };
+
+    var popup = new ol.Overlay.FeaturePopup();
+    map.addOverlay(popup);
+
+    map.on('click', function(evt) {          
+       evt.preventDefault();
+       onFeatureClick(evt, popup, map);
+    });
+
+
+
+    
+    
 
   /**
    * create extent for loading behind current map - factor increase current map extent (0 = not increased extent)

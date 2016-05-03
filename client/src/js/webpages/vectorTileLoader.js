@@ -50,6 +50,7 @@ vectorTileLoader = function(params) {
       "featureFormat": this.geojsonFormat
     });
     
+    //this.activeMeasuring = true;
     this.activeMeasuring = false;
     this.measuringTool = new measureTool({});
 
@@ -58,7 +59,7 @@ vectorTileLoader = function(params) {
     that = this;
 
     this.format = 'topojson';
-    this.format = 'geojson';
+    //this.format = 'geojson';
 
     this.source;
 
@@ -205,14 +206,14 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
   }
 
   //MULTIPLE LAYERS in tile - geojson
-  if(this_.loadingExtents < 1){
+  if(this_.loadingExtents < 1 && this_.format == 'geojson'){
     lastLoadingExtents = this_.loadingExtents;
     if(this_.mergeTool.featuresToMergeOnLevelInLayer[level]){
       var layers = Object.keys(this_.mergeTool.featuresToMergeOnLevelInLayer[level]);
       for (var n = 0; n < layers.length; n++) {
         if(this_.mergeTool.featuresToMergeOnLevelInLayer[level][layers[n]].length){
           mergingStarted = new Date();
-           this_.mergeTool.merge(this_.mergeMultipleCallback, level, this_);
+          this_.mergeTool.merge(this_.mergeMultipleCallback, level, this_);
           mergingFinished = new Date();
           totalMergeTime += mergingFinished - mergingStarted;
           this_.logger.loadingStatusChange({"mergingTime": totalMergeTime});
@@ -222,13 +223,13 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
       }
       
       if (this_.activeMeasuring) {
-          this_.measuringTool.addResults((mergingStarted - timeStart), totalMergeTime);
+          this_.measuringTool.addResults((timeFinish - timeStart), totalMergeTime);
           timeStart = new Date();
           totalMergeTime = 0;
           
           setTimeout(function(){
                 this_.measuringTool.measureNextProperty();
-          }, 1000);
+          }, 15000);
           
           //this_.measuringTool.measureNextProperty();
       } else {
@@ -253,7 +254,10 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
           this_.measuringTool.addResults((mergingStarted - timeStart), totalMergeTime);
           timeStart = new Date();
           totalMergeTime = 0;
-          this_.measuringTool.measureNextProperty();
+          setTimeout(function(){
+                this_.measuringTool.measureNextProperty();
+          }, 15000);
+          //this_.measuringTool.measureNextProperty();
       } else {
         timeStart = new Date();
         totalMergeTime = 0;
@@ -399,11 +403,14 @@ vectorTileLoader.prototype.load = function(extent, level, projection, callback, 
     });
   } else {
     var url;
-
+    
+    var serverUrl =  'http://localhost:9001';
+    //serverUrl = "http://ruian-lu2.rhcloud.com";
+    
     if(this_.format == 'topojson'){
       url = 'http://localhost:9001/se/topojsonTile';
     } else {
-       url = 'http://localhost:9001/se/renderTile';
+       url = serverUrl + "/se/renderTile"
     }
 
     $.ajax({

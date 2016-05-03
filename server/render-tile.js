@@ -2,6 +2,14 @@
 var nano = require('nano')('http://localhost:5984');
 var pg = require('pg');
 var TGrid = require('./tilegrid.js');
+var topojson = require("topojson");
+
+var convertGeoToTopo = function (feature_collection) {
+  //var topology = topojson.topology({collection: feature_collection, propertyTransform: function propertyTransform(feature) {return feature.properties;}});
+  var topology = topojson.topology({collection: feature_collection},{"property-transform":function(object){return object.properties;}});
+
+  return topology;
+};
 
 var renderTile = function(req, res, loadTopojsonFormat, client){
 	var this_ = this;
@@ -9,6 +17,7 @@ var renderTile = function(req, res, loadTopojsonFormat, client){
 	this.res = res;
 	this.dbName = 'vfr_instalace2';
 	this.idColumn = 'ogc_fid';
+    this.loadTopojsonFormat = loadTopojsonFormat;
 
 	if(loadTopojsonFormat){
 		this.test_db = nano.db.use('topo_multi_db');
@@ -17,6 +26,7 @@ var renderTile = function(req, res, loadTopojsonFormat, client){
 	}
 
 	this.loadFromCache = false;
+    //this.loadFromCache = true;
 
 	this.layersToLoad = 0;
 
@@ -71,12 +81,12 @@ renderTile.prototype.init = function(){
 		this.test_db.get(this.id, function(err, body) {
 			if (!err) {
 				this_.res.json({ "xyz" : this_.xyz, 'json': body.FeatureCollection, 'bound': this_.bound});
+                this_.done();
 			} else {
-				console.log("renderTile - ", id);
 				var layers = ['obce', 'okresy', 'kraje', 'katastralniuzemi', 'parcely'];
 				for (var i = 0; i < layers.length; i++) {
 					this_.layersToLoad++;
-					this_.existRowInDB(layers[i], 'geometry_' + TGrid.getGeomLODforZ(this.xyz.z));
+					this_.existRowInDB(layers[i], 'geometry_' + TGrid.getGeomLODforZ(this_.xyz.z));
 				}
 			}
 		});
@@ -233,18 +243,18 @@ renderTile.prototype.getTileCallback = function(feature_collection, layerName){
     //UDELAT konverzi do topojsonu
     
     if(this.loadTopojsonFormat){
-    	this.resObject.features = resObject.features.concat(jsonData.features);
+    	this.resObject.features = this.resObject.features.concat(jsonData.features);
     } else {
     	this.resObject[layerName] = jsonData;
     }
 
-
     if(this.layersToLoad == 0){
     	if(this.loadTopojsonFormat){
-    		this.resObject = convertGeoToTopo(resObject);
+    		this.resObject = convertGeoToTopo(this.resObject);
     	}
-
+        
     	this.res.json({ "xyz" : this.xyz, 'json': this.resObject, 'bound': this.bound});
+        //this.done();
     	if(!this.sharedPool){
     		this.done();
     	}
@@ -256,7 +266,7 @@ renderTile.prototype.getTileCallback = function(feature_collection, layerName){
     		FeatureCollection: this.resObject
     	};
 
-    	test_db.insert(data, this.id, function(err, body){
+    	this.test_db.insert(data, this.id, function(err, body){
     		if(err){
 
     			console.log("errorr: ", err);
