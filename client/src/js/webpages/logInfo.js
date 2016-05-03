@@ -11,7 +11,7 @@ goog.require('goog.array');
 logInfo = function() {};
 
 logInfo.prototype.loadingStatusChange = function (statusObject){    
-	if(statusObject.sizeMessage){
+	if(statusObject.sizeMessage !== undefined){
 	  var sizeDiv = document.getElementById('sizeStatus');
 	  sizeDiv.innerHTML = "";
 	  sizeDiv.innerHTML = statusObject.sizeMessage;

@@ -25,28 +25,33 @@
     <title>ol3 devstack</title>
   </head>
 
-  <body>
-
+ <body>
+    <ul id="chooseMethodPanel">
+        <h2>Vyberte metodu pro prenos vektorovych dat</h2>
+        <li id="selectVT">Vektorové dlaždice</li>
+        <li id="selectSIS">Prostorová indexovací služba</li>
+    </ul>
+    
     <div class="container-fluid">
-      <div class="map-overlay status-wrapper">
-      <button id="resetTime">ResetTime</button>
-      Stav: <span id="loadingStatus"></span>
-      <p>Data content size: <span id="sizeStatus">...</span></p>
-      <p>Extents in loading: <span id="extentsStatus">...</span></p>
-      <p>Time of loading: <span id="loadingTime">...</span> ms</p>
-      <p>Time of merging: <span id="mergingTime">...</span> ms</p>
-      
 
-      </div>
+        <div id='statusWrapper' class="map-overlay status-wrapper" style="display:none">
+            <button id="resetTime">ResetTime</button>
+            Stav: <span id="loadingStatus"></span>
+            <p>Data content size: <span id="sizeStatus">...</span></p>
+            <p>Extents in loading: <span id="extentsStatus">...</span></p>
+            <p>Time of loading: <span id="loadingTime">...</span> ms</p>
+            <p>Time of merging: <span id="mergingTime">...</span> ms</p>
+        </div>
 
-
-      <div id="map" class="map"><div id="popup"></div></div>
+        <div id="map" class="map">
+            <div id="popup"></div>
+        </div>
+        
     </div>
 
     <script type="text/javascript">
-      console.log('started');
       main();
     </script>
 
-  </body>
+</body>
 </html>

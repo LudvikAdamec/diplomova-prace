@@ -137,7 +137,7 @@ spatialIndexLoader.prototype.loaderFunction = function(extent, resolution, proje
   };
 
   $.ajax({
-    url: this_.url + data.requestType,
+    url: this_.url + '/' + data.requestType,
     type: "get",
     data: data,
     datatype: 'json',
@@ -355,7 +355,7 @@ spatialIndexLoader.prototype.loadGeometriesMultipleLayers = function(idToDownloa
 
   var this_ = this;
   $.ajax({
-    url: this.url + "getGeometryInLayers",
+    url: this.url + '/' + "getGeometryInLayers",
     type: "get",
     data:  {
       "layer": this.layerName,
@@ -409,7 +409,7 @@ spatialIndexLoader.prototype.loadFeaturesMultipleLayers = function(idToDownload,
 
   var this_ = this;
   $.ajax({
-    url: this.url + "getFeaturesByIdinLayers",
+    url: this.url + '/' + "getFeaturesByIdinLayers",
     type: "get",
     data:  {
       "layer": this.layerName,

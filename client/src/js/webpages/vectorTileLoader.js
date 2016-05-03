@@ -59,7 +59,7 @@ vectorTileLoader = function(params) {
     that = this;
 
     this.format = 'topojson';
-    //this.format = 'geojson';
+    this.format = 'geojson';
 
     this.source;
 
@@ -140,7 +140,6 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
   if(this_.format != 'topojson'){
     if(this_.loadingExtents == 0){
       var contentSize = Math.round(this_.loadedContentSize * 100) / 100;
-      console.log("contentSize:", contentSize);
       this_.logger.loadingStatusChange({
         "statusMessage": 'Doba nacteni vsech dlazdic: ' + timeFinish - timeStart + ' s - ' + 'extent loaded <i class="fa fa-check"></i>', 
         "sizeMessage": contentSize + 'mb'
@@ -349,109 +348,79 @@ vectorTileLoader.prototype.mergeCallback = function(responseObject, that){
  * @return {[type]}              [description]
  */
 vectorTileLoader.prototype.load = function(extent, level, projection, callback, resolution) {
-  var this_ = this;
-  var a = ol.proj.toLonLat([extent[0], extent[1]]);
-  var b = ol.proj.toLonLat([extent[2], extent[3]]);
+    var this_ = this;
+    var a = ol.proj.toLonLat([extent[0], extent[1]]);
+    var b = ol.proj.toLonLat([extent[2], extent[3]]);
 
-  this.remaining++;
+    this.remaining++;
 
 
-  this.geomRow = 'geometry_' + level; //this.getLODIdForResolution(resolution);
+    this.geomRow = 'geometry_' + level; //this.getLODIdForResolution(resolution);
 
-  var data = {
-    "layer": this.layerName,
-    "db": this.dbname,
-    "geom": this.geomRow,
-    "idColumn": this.idColumn,
-    "level": level,
-    "requestType": "getTiledGeomInBBOX",
-    "extent": [a[0], a[1], b[0], b[1]]
-  };
+    var data = {
+        "layer": this.layerName,
+        "db": this.dbname,
+        "geom": this.geomRow,
+        "idColumn": this.idColumn,
+        "level": level,
+        "requestType": "getTiledGeomInBBOX",
+        "extent": [a[0], a[1], b[0], b[1]]
+    };
 
-  //minX, minY, maxX, maxY
-  var z = this.tileGrid.getZForResolution(resolution);
-  var x = (extent[0] + (extent[2] - extent[0]) / 2);
-  var y = (extent[1] + (extent[3] - extent[1]) / 2);
+    //minX, minY, maxX, maxY
+    var z = this.tileGrid.getZForResolution(resolution);
+    var x = (extent[0] + (extent[2] - extent[0]) / 2);
+    var y = (extent[1] + (extent[3] - extent[1]) / 2);
 
-  //POZOR - generuje schema XYZ podle GOOGLE XYZ schematu ne podle TMS - http://wiki.osgeo.org/wiki/Tile_Map_Service_Specification
-  var xyz = this.tileGrid.getTileCoordForXYAndResolution_(extent[0] + 10, extent[1] + 10, resolution);
+    //POZOR - generuje schema XYZ podle GOOGLE XYZ schematu ne podle TMS - http://wiki.osgeo.org/wiki/Tile_Map_Service_Specification
+    var xyz = this.tileGrid.getTileCoordForXYAndResolution_(extent[0] + 10, extent[1] + 10, resolution);
 
-  var dataXYZ = {
-    'y': (xyz[2] * -1), 
-    'x': xyz[1],
-    'z': xyz[0]
-  };
+    var dataXYZ = {
+        'y': (xyz[2] * -1),
+        'x': xyz[1],
+        'z': xyz[0]
+    };
 
-  var loadFromCouchDB = false;
-  var loadTopojsonFormat = false;
+    var loadFromCouchDB = false;
+    var loadTopojsonFormat = false;
 
-  if(loadFromCouchDB){
-    $.ajax({
-      url: 'http://127.0.0.1:5984/test_db/' + dataXYZ.x + '-' + dataXYZ.y + '-' + dataXYZ.z,
-      type: "get",
-      datatype: 'json',
-      success: function(data, status, xhr){
-        var data = JSON.parse(data);
-        this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
-        this_.remaining--;
-        var z = parseInt(/[^-]*$/.exec(data._id)[0], 10);
-        callback(data.FeatureCollection.features, undefined, 'first', "DF_ID", z);
-      },
-      error:function(er){
-        return console.log("chyba: ", er);
-      }   
-    });
-  } else {
-    var url;
-    
-    var serverUrl =  'http://localhost:9001';
-    //serverUrl = "http://ruian-lu2.rhcloud.com";
-    
-    if(this_.format == 'topojson'){
-      url = 'http://localhost:9001/se/topojsonTile';
+    if (loadFromCouchDB) {
+        $.ajax({
+            url: 'http://127.0.0.1:5984/test_db/' + dataXYZ.x + '-' + dataXYZ.y + '-' + dataXYZ.z,
+            type: "get",
+            datatype: 'json',
+            success: function(data, status, xhr) {
+                var data = JSON.parse(data);
+                this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
+                this_.remaining--;
+                var z = parseInt(/[^-]*$/.exec(data._id)[0], 10);
+                callback(data.FeatureCollection.features, undefined, 'first', "DF_ID", z);
+            },
+            error: function(er) {
+                return console.log("chyba: ", er);
+            }
+        });
     } else {
-       url = serverUrl + "/se/renderTile"
-    }
-
-    $.ajax({
-      url: url,
-      type: "get",
-      data: dataXYZ,
-      datatype: 'json',
-      success: function(data, status, xhr){
-                  console.log(xhr.getResponseHeader('Content-Length'));
-
-        this_.loadedContentSize += (xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
-        this_.remaining--;
-        if(loadTopojsonFormat){
-          callback(data.json, undefined, 'first', "DF_ID", data.xyz.z, this_);
+        var url;
+        if (this_.format == 'topojson') {
+            url = this_.url + '/se/topojsonTile';
         } else {
-          callback(data.json, undefined, 'first', "DF_ID", data.xyz.z, this_);
+            url = this_.url + '/se/renderTile';
         }
-      },
-      error:function(er){
-        return console.log("chyba: ", er);
-      }   
-    });  
-  }
 
-  //getTileCoordForCoordAndZ(coordinate, z, opt_tileCoord
-  /*
-  $.ajax({
-    url: this_.url + data.requestType,
-    type: "get",
-    data: data,
-    datatype: 'json',
-    success: function(data, status, xhr){
-      //this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
-      //this_.remaining--;
-      //callback(data.FeatureCollection.features, data.level, 'first', "DF_ID");
-    },
-    error:function(er){
-      console.log("xxxxx");
-      callback([]);
-      return console.log("chyba: ", er);
-    }   
-  }); 
-  */
+        $.ajax({
+            url: url,
+            type: "get",
+            data: dataXYZ,
+            datatype: 'json',
+            success: function(data, status, xhr) {
+                this_.loadedContentSize += (xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
+                this_.remaining--;
+                callback(data.json, undefined, 'first', "DF_ID", data.xyz.z, this_);
+            },
+            error: function(er) {
+                return console.log("chyba: ", er);
+            }
+        });
+    }
 };
