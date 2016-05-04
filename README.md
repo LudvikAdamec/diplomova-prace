@@ -1,4 +1,4 @@
-# DIPLOMKA 
+# DIPLOMOVÁ PRÁCE 
 Mapová aplikace pro vektorové dlaždice a prostorovou indexovací službu.
 
 #Ukázka aplikace 
