@@ -502,6 +502,12 @@ app.wp.index = function() {
         });
         
         document.getElementById('control-status-wrapper').style.display = 'block';
+        var wrapperHeight = 300; 
+        if($(window).height() > 300){
+            wrapperHeight = ($(window).height() - 100);
+        }
+        
+        document.getElementById('statusWrapper').style['max-height'] = wrapperHeight + 'px';
 
         var log = new logInfo();
         var resetTimers = function() {
