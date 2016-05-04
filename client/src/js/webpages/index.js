@@ -229,16 +229,6 @@ app.wp.index = function() {
             });
         }
 
-        var hoverStyle = new ol.style.Style({
-            stroke: new ol.style.Stroke({
-                color: 'rgba(255, 0, 0, 1)',
-                width: 2
-            }),
-            fill: new ol.style.Fill({
-                color: 'rgba(255, 25, 25, 0.7)'
-            })
-        });
-
         var vector = new ol.layer.Vector({
             source: vectorSource,
             style: new ol.style.Style({
@@ -254,40 +244,42 @@ app.wp.index = function() {
 
         map.addLayer(vector);
 
-        var findFeatureLayer = function(map, layer, pixel) {
-            var f;
-            map.forEachFeatureAtPixel(pixel, function(feature, actualLyr) {
-                f = feature;
-            }, this, function(lyr) {
-                if (lyr.get('name')) {
-                    //return true;
-                    return lyr.get('name') === layer.get('name');
+        var getFeatureLayerAtPixel = function(pixel) {
+            var featuresAtPixel = {};
+            var layerName;
+            var selected;
+            var feature = map.forEachFeatureAtPixel(pixel, function(f, layer) {
+                if (layer.get('name')) {
+                    featuresAtPixel[layer.get('name')] = {
+                        'feature': f,
+                        'layer': layer
+                    };
                 }
+                //return feature;
             });
-            return f;
+
+            if (Object.keys(featuresAtPixel).length > 0) {
+                if (featuresAtPixel.Obce) {
+                    selected = featuresAtPixel.Obce;
+                } else if (featuresAtPixel.Okresy) {
+                    selected = featuresAtPixel.Okresy;
+                } else if (featuresAtPixel.Kraje) {
+                    selected = featuresAtPixel.Kraje;
+                }
+            }
+
+            return selected;
+
         };
 
         var onFeatureClick = function(evt, popup, map) {
             popup.hide();
 
-            var i = 0;
-            var features = [];
-            var firstFeature;
-            var fromLayer;
-            var layers = map.getLayers().array_;
-            var k = layers.length - 1;
-
-            do {
-                firstFeature = findFeatureLayer(map, layers[k], evt.pixel);
-                if (firstFeature !== undefined) {
-                    fromLayer = layers[k];
-                }
-                k--;
-            } while (k > 0 && firstFeature === undefined);
-
-
-            if (firstFeature) {
-                var feature = firstFeature,
+            var selected = getFeatureLayerAtPixel(evt.pixel);
+            
+            if (selected) {
+                var feature = selected.feature,
+                    fromLayer = selected.layer,
                     properties = feature.getKeys(),
                     values = feature.getProperties();
 
@@ -296,10 +288,10 @@ app.wp.index = function() {
 
                 popup.headerLabel.innerHTML = headerLabel;
 
-                var attributes = firstFeature.getKeys();
+                var attributes = feature.getKeys();
 
-                for (i = 0; i < attributes.length; i++) {
-                    var attribute = firstFeature.get(attributes[i]);
+                for (var i = 0; i < attributes.length; i++) {
+                    var attribute = feature.get(attributes[i]);
 
                     var liContent = '<li class="property-item">' +
                         '<div class="property-label">' + attributes[i] + '</div>' +
@@ -312,6 +304,8 @@ app.wp.index = function() {
                 var popupContent = '<ul class="property-list">' + ulContent + '<ul>';
 
                 var geometry = feature.getGeometry();
+                
+                popupLayer.getSource().addFeature(feature);
                 if (geometry.getType() == "Point") {
                     popup.show(geometry.getCoordinates(), popupContent);
                 } else {
@@ -320,15 +314,8 @@ app.wp.index = function() {
 
             }
         };
-
-        var popup = new ol.Overlay.FeaturePopup();
-        map.addOverlay(popup);
-
-        map.on('click', function(evt) {
-            evt.preventDefault();
-            onFeatureClick(evt, popup, map);
-        });
-
+        
+        //layer for storing overlay features
         var collection = new ol.Collection();
         var featureOverlay = new ol.layer.Vector({
             map: map,
@@ -342,42 +329,24 @@ app.wp.index = function() {
                     width: 2
                 }),
                 fill: new ol.style.Fill({
-                    color: 'rgba(255,0,0,0.5)'
+                    color: 'rgba(255,0,0,0.3)'
                 })
             }),
             updateWhileAnimating: true,
             updateWhileInteracting: true
         });
-        //featureOverlay.getSource().addFeature(feature);
-        //featureOverlay.getSource().removeFeature(feature);
-
 
         var highlight;
         var displayFeatureInfo = function(pixel) {
-
-            var hoveredFeatures = {};
             var selectedFeature;
-            var feature = map.forEachFeatureAtPixel(pixel, function(f, layer) {
-                if(layer.get('name')){
-                    hoveredFeatures[layer.get('name')] = f;   
-                }
-                //return feature;
-            });
-
             if (highlight) {
                 featureOverlay.getSource().removeFeature(highlight);
                 highlight = null;
             }
 
-            if (Object.keys(hoveredFeatures).length > 0) {
-                if(hoveredFeatures.Obce){
-                    selectedFeature = hoveredFeatures.Obce;
-                } else if(hoveredFeatures.Okresy){
-                    selectedFeature = hoveredFeatures.Okresy;  
-                } else if(hoveredFeatures.Kraje){
-                    selectedFeature = hoveredFeatures.Kraje;
-                }
-                
+            var selectedFeature = getFeatureLayerAtPixel(pixel);
+            if (selectedFeature) {
+                selectedFeature = selectedFeature.feature;
                 if (selectedFeature !== highlight) {
                     if (selectedFeature) {
                         featureOverlay.getSource().addFeature(selectedFeature);
@@ -385,7 +354,41 @@ app.wp.index = function() {
                     highlight = selectedFeature;
                 }
             }
+
         };
+        
+        //LAYER for storing selected feature with popup
+        var selectedFeature;
+        var selectedCollection = new ol.Collection();
+        var popupLayer = new ol.layer.Vector({
+            map: map,
+            source: new ol.source.Vector({
+                features: selectedCollection,
+            }),
+            style: new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: 'rgba(255,255, 0, 0.5)',
+                    width: 2
+                }),
+                fill: new ol.style.Fill({
+                    color: 'rgba(200,200, 10, 1)'
+                })
+            }),
+            updateWhileAnimating: true,
+            updateWhileInteracting: true
+        });
+
+        var popup = new ol.Overlay.FeaturePopup();
+        map.addOverlay(popup);
+   
+        popup.on('close', function (params) {
+           popupLayer.getSource().clear();
+        });
+
+        map.on('click', function(evt) {
+            evt.preventDefault();
+            onFeatureClick(evt, popup, map);
+        });
 
         map.on('pointermove', function(evt) {
             if (evt.dragging) {

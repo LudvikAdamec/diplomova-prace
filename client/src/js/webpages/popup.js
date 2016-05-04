@@ -11,66 +11,6 @@ goog.require('ol.Overlay');
 
 ol.Overlay.FeaturePopup = function(opt_options) {
     var this_ = this;
-    
-    /*
-    this.popup = document.createElement('div');
-    this.popup.className = 'w-popup-wrapper';
-
-    this.container = document.createElement('div'); // document.createElement('div');
-    this.container.className = 'w-panel ol-feature-popup ';
-
-    this.header = document.createElement('div');
-    this.header.className = 'ol-feature-popup-header w-list-menu bg-color-layer';
-
-    this.headerLabel = document.createElement('p');
-    this.headerLabel.className = 'nav navbar-text';
-    this.header.appendChild(this.headerLabel);
-
-
-    this.closeButton = document.createElement('div');
-    this.closeButton.className = 'w-close';
-    this.header.appendChild(this.closeButton);
-
-    this.container.appendChild(this.header);
-
-    this.content = document.createElement('div');
-    this.content.className = 'ol-feature-popup-content';
-    this.container.appendChild(this.content);
-
-    this.popup.appendChild(this.container);
-    var arrow = document.createElement('div');
-    arrow.className = 'arrow-triangle-down';*/
-    
-    /*    
-    <div class="ol-popup">   
-        <div class="header">
-            <h1>Vrstva: obce</h1>
-        </div>
-
-        <ul class="property-list">
-            <li class="property-item">
-                <div class="property-label">kod: </div>
-                <div class="property-value">584762</div>
-            </li>
-
-            <li class="property-item">
-                <div class="property-label">nazev: </div>
-                <div class="property-value">Pasohlávky</div>
-            </li>
-
-            <li class="property-item">
-                <div class="property-label">okreskod: </div>
-                <div class="property-value">3703</div>
-            </li>
-
-            <li class="property-item">
-                <div class="property-label">nutslau: </div>
-                <div class="property-value">CZ0643584762</div>
-            </li>
-        </ul>
-    </div>
-    */
-    
 
     this.popup = document.createElement('div');
     this.popup.className = 'ol-popup ';
@@ -99,7 +39,7 @@ ol.Overlay.FeaturePopup = function(opt_options) {
     
     this.popup.appendChild(this.container);
 
-    this.closeButton.addEventListener('click', function(evt) {
+    this.closeButton.addEventListener('click', function(evt) {       
         this_.hide();
         evt.preventDefault();
     }, false);
@@ -125,6 +65,9 @@ ol.Overlay.FeaturePopup.prototype.show = function(coord, html) {
 
 ol.Overlay.FeaturePopup.prototype.hide = function(coord, html) {
     this.popup.style.display = 'none';
+    if(this.closeCallback){
+        this.closeCallback();    
+    }
     return this;
 };
 
@@ -133,6 +76,12 @@ ol.Overlay.FeaturePopup.prototype.centerPopup = function() {
     var marginLeft = '-' + (parseInt(this.container.clientWidth, 10) / 2) + 'px';
     this.container.style['margin-top']  = marginTop;
     this.container.style['margin-left'] = marginLeft;
+};
+
+ol.Overlay.FeaturePopup.prototype.on = function (prop, callback) {
+    if(prop == 'close'){
+        this.closeCallback = callback;    
+    }
 };
 
 
