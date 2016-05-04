@@ -1,11 +1,8 @@
+# DIPLOMKA 
+Mapová aplikace pro vektorové dlaždice a prostorovou indexovací službu.
 
-
-CouchDB
-- instalace
-- zalozeni db
-- naimportovani
-- npm install
-- 
+#Ukázka aplikace 
+http://ruian.ludvikadamec.cz
 
 ## Requirements
 - couchDB
@@ -17,8 +14,6 @@ CouchDB
 - bower
 - git
 - JAVA 7 and higher
-
-# DIPLOMKA 
 
 ## Installation
 1) git clone
@@ -62,7 +57,7 @@ python public/generalizePostgis.py
 ```
   var loaderParams = {
       "db": {
-        "layerName" : "obce", //"parcelswgs";
+        "layerName" : "obce",
         "dbname" : "vfr_instalace",
         "geomColumn" : "geometry_1",
         "idColumn" : "ogc_fid",
@@ -90,9 +85,17 @@ grunt
 
 BASED on repository https://github.com/jirik/ol3ds
 
-# HINTS dioplomkaVT - rendering commands....
+### HINTS dioplomkaVT - rendering commands....
 
 Transformace EPSG v postgisu
 CREATE TABLE new_table AS 
   SELECT ST_Transform(geom,900913) AS geom, ogc_fid 
   FROM newparcel;
+
+
+CouchDB
+- instalace
+- zalozeni db
+- naimportovani
+- npm install
+- 
