@@ -65,18 +65,22 @@ center          { text-align: center }
   ul, ol, dl    { page-break-before: avoid }
 }
 
+html, body {
+    height: 100%;
+    margin: 0;
+}
 
 body {
-  padding-top: 0px;
   font-family: 'Open sans', Arial, Verdana;
 }
+
 .container-fluid {
-  padding: 2px;
+  height: 100%;
 }
 
 #map {
-	height: 100%;
 	width: 100%;
+    height: 100%;
 }
 
 .map-overlay {
@@ -214,4 +218,44 @@ body {
     -webkit-box-sizing: border-box;
     -moz-box-sizing: border-box;
     box-sizing: border-box;
+}
+
+
+.ul-buthons {
+    list-style: none;
+}
+
+.ul-buthons li {
+    padding: 10px 20px;
+    margin: 20px;
+    background-color: #ECECEC;
+    //display: inline-block;
+    border: 1px solid #C5C5C5;
+    text-align: center;
+}
+
+.style-button {
+    cursor: pointer;
+      
+      
+    color: rgb(36, 36, 36);
+    padding: 7px 12.5px;
+    background-color: rgba(225,225,225, 0.25);
+
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+    transition:.4s;
+}
+
+.style-button:hover {
+    color: rgb(0, 0, 0);
+    background-color: rgba(245,245,245, 0.25);
+}
+
+
+#chooseMethodPanel {
+    margin: 0 auto;
+    width: 550px;
 }

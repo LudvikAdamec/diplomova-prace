@@ -33,6 +33,7 @@ goog.require('logInfo');
 
 goog.require('ol.Overlay.FeaturePopup');
 
+//goog.require('ol.FeatureOverlay');
 
 goog.require('ol.source.MultiLevelVector');
 
@@ -328,8 +329,75 @@ app.wp.index = function() {
             onFeatureClick(evt, popup, map);
         });
 
+        var collection = new ol.Collection();
+        var featureOverlay = new ol.layer.Vector({
+            map: map,
+            source: new ol.source.Vector({
+                features: collection,
+                useSpatialIndex: false
+            }),
+            style: new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: 'rgba(255,0,0, 0)',
+                    width: 2
+                }),
+                fill: new ol.style.Fill({
+                    color: 'rgba(255,0,0,0.5)'
+                })
+            }),
+            updateWhileAnimating: true,
+            updateWhileInteracting: true
+        });
+        //featureOverlay.getSource().addFeature(feature);
+        //featureOverlay.getSource().removeFeature(feature);
 
 
+        var highlight;
+        var displayFeatureInfo = function(pixel) {
+
+            var hoveredFeatures = {};
+            var selectedFeature;
+            var feature = map.forEachFeatureAtPixel(pixel, function(f, layer) {
+                if(layer.get('name')){
+                    hoveredFeatures[layer.get('name')] = f;   
+                }
+                //return feature;
+            });
+
+            if (highlight) {
+                featureOverlay.getSource().removeFeature(highlight);
+                highlight = null;
+            }
+
+            if (Object.keys(hoveredFeatures).length > 0) {
+                if(hoveredFeatures.Obce){
+                    selectedFeature = hoveredFeatures.Obce;
+                } else if(hoveredFeatures.Okresy){
+                    selectedFeature = hoveredFeatures.Okresy;  
+                } else if(hoveredFeatures.Kraje){
+                    selectedFeature = hoveredFeatures.Kraje;
+                }
+                
+                if (selectedFeature !== highlight) {
+                    if (selectedFeature) {
+                        featureOverlay.getSource().addFeature(selectedFeature);
+                    }
+                    highlight = selectedFeature;
+                }
+            }
+        };
+
+        map.on('pointermove', function(evt) {
+            if (evt.dragging) {
+                return;
+            }
+            var pixel = map.getEventPixel(evt.originalEvent);
+            displayFeatureInfo(pixel);
+        });
+
+        map.on('click', function(evt) {
+            displayFeatureInfo(evt.pixel);
+        });
 
 
 
