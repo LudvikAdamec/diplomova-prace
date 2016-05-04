@@ -491,7 +491,17 @@ app.wp.index = function() {
         parcelyL.set('name', 'Parcely');
         okresyL.set('name', 'Okresy');
 
-        document.getElementById('statusWrapper').style.display = 'block';
+        
+        document.getElementById('control-status-wrapper').addEventListener('click', function () {
+            var contentDiv = document.getElementById('statusWrapper');
+            if(contentDiv.style.display == 'none'){
+                contentDiv.style.display = 'block';
+            } else {
+                contentDiv.style.display = 'none';
+            }
+        });
+        
+        document.getElementById('control-status-wrapper').style.display = 'block';
 
         var log = new logInfo();
         var resetTimers = function() {

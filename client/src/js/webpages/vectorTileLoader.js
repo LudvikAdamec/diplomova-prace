@@ -71,7 +71,7 @@ vectorTileLoader.prototype.loaderFunction = function(extent, resolution, project
   //console.log("that", that);
   if(that.loadingExtents == 0){
     timeStart = new Date();
-    console.log(timeStart);
+    this.loadedContentSize = 0;
   }
 
   that.logger.loadingStatusChange({"statusMessage": 'loading <i class="fa fa-spinner fa-spin"></i>'});
@@ -141,7 +141,7 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
     if(this_.loadingExtents == 0){
       var contentSize = Math.round(this_.loadedContentSize * 100) / 100;
       this_.logger.loadingStatusChange({
-        "statusMessage": 'Doba nacteni vsech dlazdic: ' + timeFinish - timeStart + ' s - ' + 'extent loaded <i class="fa fa-check"></i>', 
+        "statusMessage": '', 
         "sizeMessage": contentSize + 'mb'
       });
 
@@ -224,6 +224,7 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
       if (this_.activeMeasuring) {
           this_.measuringTool.addResults((timeFinish - timeStart), totalMergeTime);
           timeStart = new Date();
+          this_.loadedContentSize = 0;
           totalMergeTime = 0;
           
           setTimeout(function(){
@@ -233,6 +234,7 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
           //this_.measuringTool.measureNextProperty();
       } else {
           timeStart = new Date();
+          this_.loadedContentSize = 0;
           totalMergeTime = 0;
       }
     }
@@ -241,7 +243,6 @@ vectorTileLoader.prototype.callback = function(responseFeatures, level, decrease
   //SINGLE and MULTIPLE LAYERS in tile - topojson
   if(this_.loadingExtents < 1 && this_.mergeTool.topojsonOnLevel[level] && this_.mergeTool.topojsonOnLevel[level].length){
     lastLoadingExtents = this_.loadingExtents;
-    console.log("merge");
     mergingStarted = new Date();
     this_.mergeTool.mergeTopojsons(this_.mergeMultipleCallback, level, this_);
     mergingFinished = new Date();

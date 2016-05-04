@@ -251,7 +251,7 @@ spatialIndexLoader.prototype.callback = function(responseFeatures, level, decrea
 
                     this.logger.loadingStatusChange({
                         "mergingTime": totalMergeTime,
-                        "statusMessage": '<i class="fa fa-check"></i>'
+                        "statusMessage": 'Loaded <i class="fa fa-check"></i>'
                     });
                 }
             }
@@ -269,7 +269,7 @@ spatialIndexLoader.prototype.callback = function(responseFeatures, level, decrea
         
         var contentSize = Math.round(this.loadedContentSize * 100) / 100;
         this.logger.loadingStatusChange({
-            "statusMessage": 'extent loaded <i class="fa fa-check"></i>',
+            "statusMessage": '',
             "sizeMessage": contentSize + 'mb'
         });
 
@@ -277,7 +277,7 @@ spatialIndexLoader.prototype.callback = function(responseFeatures, level, decrea
             this.measuringTool.addResults((this.timeFinish - this.timeStart), totalMergeTime, contentSize);
             this.timeStart = new Date();
             totalMergeTime = 0;
-            
+            this.loadedContentSize = 0;
             //this_.measuringTool.measureNextProperty();
             
             setTimeout(function(){

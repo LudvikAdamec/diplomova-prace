@@ -18,9 +18,9 @@ logInfo.prototype.loadingStatusChange = function (statusObject){
 	}
 
 	if(statusObject.statusMessage){
-	  var statusDiv = document.getElementById('loadingStatus');
+	  /*var statusDiv = document.getElementById('loadingStatus');
 	  statusDiv.innerHTML = "";
-	  statusDiv.innerHTML = statusObject.statusMessage;
+	  statusDiv.innerHTML = statusObject.statusMessage;*/
 	}
 
 	if(statusObject.statusExtents !== undefined){
@@ -40,5 +40,9 @@ logInfo.prototype.loadingStatusChange = function (statusObject){
 	  mergingTimeDiv.innerHTML = "";
 	  mergingTimeDiv.innerHTML = statusObject.mergingTime;
 	}
+};
+
+logInfo.prototype.init = function (params) {
+    
 };
 
