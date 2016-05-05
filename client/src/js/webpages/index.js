@@ -47,7 +47,7 @@ var map;
  */
 app.wp.index = function() {
 
-    var init = function(selectedMethod) {
+    var init = function(selectedMethod, selectedFormat) {
         
         map = new ol.Map({
             layers: [],
@@ -205,6 +205,10 @@ app.wp.index = function() {
                 katastralniuzemi: katastralniuzemiSource
             }
         };
+        
+        if(selectedFormat){
+            loaderParams.format = selectedFormat;
+        }
 
         var loader = new spatialIndexLoader(loaderParams);
         var vtLoader = new vectorTileLoader(loaderParams);
@@ -528,7 +532,14 @@ app.wp.index = function() {
 
     document.getElementById('selectVT').addEventListener('click', function () {
         document.getElementById('chooseMethodPanel').style.display = 'none';
-        init('selectVT');
+        var options = document.getElementsByTagName('input');
+        var format;
+        for(var i = 0; i < options.length; i++){
+            if(options[i].checked){
+                format = options[i].value;
+            }
+        }
+        init('selectVT', format);
     });
     
     document.getElementById('selectSIS').addEventListener('click', function () {

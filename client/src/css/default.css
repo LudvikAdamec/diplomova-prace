@@ -228,15 +228,20 @@ body {
 
 .ul-buthons {
     list-style: none;
+    top: 50px;
+    position: relative;
 }
 
 .ul-buthons li {
     padding: 10px 20px;
     margin: 20px;
-    background-color: #ECECEC;
+    //background-color: #ECECEC;
     //display: inline-block;
     border: 1px solid #C5C5C5;
-    text-align: center;
+}
+
+.ul-buthons button {
+   float: right;
 }
 
 .style-button {

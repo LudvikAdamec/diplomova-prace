@@ -20,16 +20,32 @@
     <script src="../../bower_components/jsts/lib/jsts.js"></script>
 
     <script src="http://localhost:9810/compile?id=index-debug" type="text/javascript"></script>
-    <link href='https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,700,600italic,700italic,800,800italic&subset=latin,latin-ext' rel='stylesheet' type='text/css'>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.1/css/font-awesome.min.css">
+    <!--<link href='https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,700,600italic,700italic,800,800italic&subset=latin,latin-ext' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.1/css/font-awesome.min.css">-->
     <title>ol3 devstack</title>
   </head>
 
  <body>
-    <ul id="chooseMethodPanel" class="ul-buthons">
+    <ul id="chooseMethodPanel" class="ul-buthons material-shadow">
         <h2>Vyberte metodu pro přenos vektorových dat</h2>
-        <li id="selectVT" class="style-button">Vektorové dlaždice</li>
-        <li id="selectSIS" class="style-button">Prostorová indexovací služba</li>
+        <li class="style-button material-shadoww">
+            Vektorové dlaždice:
+            <input id='input-geojson' type="radio" name="format" value="geojson" checked>
+            <label for='input-geojson'>GeoJSON</label>
+            <input id='input-topojson' input='input-topojson' type="radio" name="format" value="topojson">
+            <label for='input-topojson'>TopoJSON</label>
+            <!--<select>
+                <option value="volvo">geojson</option>
+                <option value="saab">topojson</option>
+            </select>-->
+            <button id="selectVT" >Vybrat</button>
+        </li>
+        <li class="style-button material-shadoww">
+            Prostorová indexovací služba:
+            <input id='input-geojson-sis' type="radio" name="" value="geojson" checked readonly>
+            <label for='input-geojson-sis'>GeoJSON</label>
+            <button id='selectSIS'>Vybrat</button>
+        </li>
     </ul>
     
     <div class="container-fluid">
