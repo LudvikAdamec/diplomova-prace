@@ -30,20 +30,30 @@
         <h2>Vyberte metodu pro přenos vektorových dat</h2>
         <li class="style-button material-shadoww">
             Vektorové dlaždice:
-            <input id='input-geojson' type="radio" name="format" value="geojson" checked>
-            <label for='input-geojson'>GeoJSON</label>
-            <input id='input-topojson' input='input-topojson' type="radio" name="format" value="topojson">
-            <label for='input-topojson'>TopoJSON</label>
-            <!--<select>
-                <option value="volvo">geojson</option>
+            <p>
+                <input id='input-geojson' type="radio" name="format" value="geojson" checked>
+                <label for='input-geojson'>GeoJSON</label>
+                <input id='input-topojson' input='input-topojson' type="radio" name="format" value="topojson">
+                <label for='input-topojson'>TopoJSON</label>
+            </p>
+            <p>
+                <input id='input-cache-false' input='input-topojson' type="radio" name="caching" value="false" checked>
+                <label for='input-cache-false'>OnTheFly</label>
+                <input id='input-cache-true' type="radio" name="caching" value="true">
+                <label for='input-cache-true'>Cache</label>
+            </p>   
+               <!--<select>
+                    <option value="volvo">geojson</option>
                 <option value="saab">topojson</option>
             </select>-->
             <button id="selectVT" >Vybrat</button>
         </li>
         <li class="style-button material-shadoww">
             Prostorová indexovací služba:
-            <input id='input-geojson-sis' type="radio" name="" value="geojson" checked readonly>
-            <label for='input-geojson-sis'>GeoJSON</label>
+            <p>
+                <input id='input-geojson-sis' type="radio" name="" value="geojson" checked readonly>
+                <label for='input-geojson-sis'>GeoJSON</label>
+            </p>
             <button id='selectSIS'>Vybrat</button>
         </li>
     </ul>

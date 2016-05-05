@@ -47,7 +47,7 @@ var map;
  */
 app.wp.index = function() {
 
-    var init = function(selectedMethod, selectedFormat) {
+    var init = function(selectedMethod, selectedFormat, selectedCaching) {
         
         map = new ol.Map({
             layers: [],
@@ -208,6 +208,10 @@ app.wp.index = function() {
         
         if(selectedFormat){
             loaderParams.format = selectedFormat;
+        }
+        
+        if(selectedCaching){
+            loaderParams.loadFromCache = selectedCaching;
         }
 
         var loader = new spatialIndexLoader(loaderParams);
@@ -532,14 +536,23 @@ app.wp.index = function() {
 
     document.getElementById('selectVT').addEventListener('click', function () {
         document.getElementById('chooseMethodPanel').style.display = 'none';
-        var options = document.getElementsByTagName('input');
+        var options =  document.querySelectorAll('input[name$="format"]'); //document.getElementsByTagName('input');
         var format;
         for(var i = 0; i < options.length; i++){
             if(options[i].checked){
                 format = options[i].value;
             }
         }
-        init('selectVT', format);
+
+        var options = document.querySelectorAll('input[name$="caching"]'); //document.getElementsByTagName('input');
+        var caching;
+        for (var i = 0; i < options.length; i++) {
+            if (options[i].checked) {
+                caching = options[i].value;
+            }
+        }
+                
+        init('selectVT', format, caching);
     });
     
     document.getElementById('selectSIS').addEventListener('click', function () {

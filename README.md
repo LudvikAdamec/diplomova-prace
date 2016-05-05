@@ -71,6 +71,9 @@ python public/generalizePostgis.py
 grunt
 ```
 
+##CouchDB cache
+- pro ukládání/načítáni z CouchDB cache je nutné pro GeoJSON dlaždice mít vytvořenou databázi 'geo_multi_db' a pro TopoJSON 'topo_multi_db'.
+
 ## Development
 * `grunt` to run dev server and open Hello World in the browser
   * Edit content of `client/src/js/webpages/index.js` and see changes in the browser

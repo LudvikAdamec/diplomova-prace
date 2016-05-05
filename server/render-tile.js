@@ -18,15 +18,15 @@ var renderTile = function(req, res, loadTopojsonFormat, client){
 	this.dbName = 'vfr_instalace2';
 	this.idColumn = 'ogc_fid';
     this.loadTopojsonFormat = loadTopojsonFormat;
-
-	if(loadTopojsonFormat){
-		this.test_db = nano.db.use('topo_multi_db');
-	} else {
-		this.test_db = nano.db.use('geo_multi_db');
-	}
-
-	this.loadFromCache = false;
-    //this.loadFromCache = true;
+    
+	this.loadFromCache = req.param('loadFromCache');
+    if(this.loadFromCache){        
+        if(loadTopojsonFormat){
+            this.test_db = nano.db.use('topo_multi_db');
+        } else {
+            this.test_db = nano.db.use('geo_multi_db');
+        }
+    }
 
 	this.layersToLoad = 0;
 

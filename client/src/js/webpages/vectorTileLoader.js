@@ -25,6 +25,7 @@ vectorTileLoader = function(params) {
     this.geomRow = dbParams.geomColumn;
     this.idColumn = dbParams.idColumn;
     this.logger = new logInfo();
+    this.loadFromCache =  params.loadFromCache;
 
     //this.layerName = params.layers[0].name;
 
@@ -378,7 +379,8 @@ vectorTileLoader.prototype.load = function(extent, level, projection, callback, 
     var dataXYZ = {
         'y': (xyz[2] * -1),
         'x': xyz[1],
-        'z': xyz[0]
+        'z': xyz[0],
+        'loadFromCache': this.loadFromCache
     };
 
     var loadFromCouchDB = false;
@@ -389,6 +391,7 @@ vectorTileLoader.prototype.load = function(extent, level, projection, callback, 
             url: 'http://127.0.0.1:5984/test_db/' + dataXYZ.x + '-' + dataXYZ.y + '-' + dataXYZ.z,
             type: "get",
             datatype: 'json',
+            data: {'loadFromCache': true},
             success: function(data, status, xhr) {
                 var data = JSON.parse(data);
                 this_.loadedContentSize += parseInt(xhr.getResponseHeader('Content-Length')) / (1024 * 1024);
